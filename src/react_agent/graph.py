@@ -1,12 +1,9 @@
-"""Define a custom Reasoning and Action agent.
 
-Works with a chat model with tool calling support.
-"""
 
 from datetime import UTC, datetime
 from typing import Dict, List, Literal, cast
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.runtime import Runtime
@@ -16,8 +13,12 @@ from react_agent.state import InputState, State
 from react_agent.tools import TOOLS
 from react_agent.utils import load_chat_model
 
-# Define the function that calls the model
+"""Define a custom Reasoning and Action agent.
 
+Works with a chat model with tool calling support.
+"""
+
+# Define the function that calls the model
 
 async def call_model(
     state: State, runtime: Runtime[Context]
@@ -113,4 +114,4 @@ builder.add_conditional_edges(
 builder.add_edge("tools", "call_model")
 
 # Compile the builder into an executable graph
-graph = builder.compile(name="ReAct Agent")
+graph = builder.compile(name="E-Commerce ChatBot")
