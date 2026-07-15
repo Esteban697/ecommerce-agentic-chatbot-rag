@@ -41,6 +41,9 @@ async def call_model(
         system_time=datetime.now(tz=UTC).isoformat()
     )
 
+    #print the first 1000 characters of the system message for debugging
+    print(f"System message (first 1000 chars): {system_message[:1000]}")
+
     # Get the model's response
     response = cast(
         AIMessage,
@@ -59,6 +62,9 @@ async def call_model(
                 )
             ]
         }
+    
+    #print the first 1000 characters of the model's response for debugging
+    print(f"Model response (first 1000 chars): {response.content[:1000]}")
 
     # Return the model's response as a list to be added to existing messages
     return {"messages": [response]}
@@ -115,3 +121,5 @@ builder.add_edge("tools", "call_model")
 
 # Compile the builder into an executable graph
 graph = builder.compile(name="E-Commerce ChatBot")
+
+print("Graph compiled successfully. Ready to handle requests.")

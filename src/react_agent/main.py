@@ -12,6 +12,7 @@ from typing import Any
 from react_agent.context import Context
 from react_agent.graph import graph
 from react_agent.prompts import SYSTEM_PROMPT
+from react_agent.ingestion import embeddings_and_vectorstore
 
 from langchain_core.messages import HumanMessage
 
@@ -76,17 +77,26 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         retrieved_products=result.get("retrieved_products", []),
     )
 
+print("Starting FastAPI backend for E-Commerce Chatbot Service...")
+
 """ Data Ingestion 
 Description: TODO
 """
+# Make sure to load environment variables from .env file
+load_dotenv()
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
 
-#MOCK direct JSON file read
+# Initialize the embeddings and vector store for product retrieval
+embeddings_and_vectorstore(DATA_PATH)
+
+# THIS IS MOCK FROM HERE DOWN
 with open(DATA_PATH, "r", encoding="utf-8") as f:
     RAW_PRODUCTS = json.load(f)
 
 SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
 
-load_dotenv()
+print(f"Loaded {len(RAW_PRODUCTS)} products from {DATA_PATH}.")
+print(f"Available site_ids: {SITE_IDS}")
+
