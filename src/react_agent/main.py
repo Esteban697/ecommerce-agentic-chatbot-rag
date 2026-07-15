@@ -1,3 +1,6 @@
+""" Main entry point for the FastAPI backend.
+Defines the API endpoints and the data ingestion logic."""
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -13,7 +16,7 @@ from react_agent.prompts import SYSTEM_PROMPT
 from langchain_core.messages import HumanMessage
 
 """ API Endpoint definition with FastAPI
-Description:
+Description: Defines the API endpoints for the E-Commerce Chatbot Service.
 """
 
 app = FastAPI(
@@ -73,8 +76,8 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         retrieved_products=result.get("retrieved_products", []),
     )
 
-""" Data Injestion 
-Description:
+""" Data Ingestion 
+Description: TODO
 """
 
 APP_DIR = Path(__file__).resolve().parent

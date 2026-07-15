@@ -1,4 +1,8 @@
-
+"""Defines a custom Reasoning and Action agent Chatbot Graph.
+Using LangGraph, we define a graph that represents the flow of the agent's reasoning and actions.
+The graph includes a Tool Node that allows the agent to call external tools, such as searching the web or searching a product catalog.
+The graph is designed to be flexible and can be easily modified to add new tools or change the agent's behavior.
+"""
 
 from datetime import UTC, datetime
 from typing import Dict, List, Literal, cast
@@ -12,11 +16,6 @@ from react_agent.context import Context
 from react_agent.state import InputState, State
 from react_agent.tools import TOOLS
 from react_agent.utils import load_chat_model
-
-"""Define a custom Reasoning and Action agent.
-
-Works with a chat model with tool calling support.
-"""
 
 # Define the function that calls the model
 
@@ -78,6 +77,7 @@ builder.add_node("tools", ToolNode(TOOLS))
 builder.add_edge("__start__", "call_model")
 
 
+# Logic to determine the next node based on the model's output
 def route_model_output(state: State) -> Literal["__end__", "tools"]:
     """Determine the next node based on the model's output.
 
