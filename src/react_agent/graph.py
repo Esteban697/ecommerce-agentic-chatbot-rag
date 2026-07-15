@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Dict, List, Literal, cast
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.runtime import Runtime
@@ -43,15 +43,15 @@ async def call_model(
     )
 
     # Get the model's response
-    response = cast( # type: ignore[redundant-cast]
+    response = cast(
         AIMessage,
         await model.ainvoke(
-            [{"role": "system", "content": system_message}, *state.messages]
+            [SystemMessage(content=system_message), *state["messages"]]
         ),
     )
 
     # Handle the case when it's the last step and the model still wants to use a tool
-    if state.is_last_step and response.tool_calls:
+    if state["is_last_step"] and response.tool_calls:
         return {
             "messages": [
                 AIMessage(
@@ -89,7 +89,7 @@ def route_model_output(state: State) -> Literal["__end__", "tools"]:
     Returns:
         str: The name of the next node to call ("__end__" or "tools").
     """
-    last_message = state.messages[-1]
+    last_message = state["messages"][-1]
     if not isinstance(last_message, AIMessage):
         raise ValueError(
             f"Expected AIMessage in output edges, but got {type(last_message).__name__}"

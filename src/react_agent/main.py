@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import json
@@ -57,7 +58,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             "retrieved_products": [],
         },
         context = Context(
-            model="openai:gpt-4.1",
+            model="openai/gpt-4.1",
             system_prompt=SYSTEM_PROMPT,
             site_id=payload.site_id,
             products=RAW_PRODUCTS,
@@ -77,10 +78,12 @@ Description:
 """
 
 APP_DIR = Path(__file__).resolve().parent
-DATA_PATH = APP_DIR.parent / "product_catalog_dataset.json"
+DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
 
 #MOCK direct JSON file read
-with open("product_catalog_dataset.json", "r", encoding="utf-8") as f:
+with open(DATA_PATH, "r", encoding="utf-8") as f:
     RAW_PRODUCTS = json.load(f)
 
 SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
+
+load_dotenv()
