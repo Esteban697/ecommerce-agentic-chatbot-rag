@@ -46,3 +46,18 @@ The resulting vector DB can be used as part of the logic of a Tool Node in the C
 
 API can provide a way to test the Chatbot implemented and exposed the data structures required.
 LangGraph based on ToolNode providing calls to RAG Pipeline and LangSmith providing observability.
+----------------------------------
+# Delivery Structure:
+
+## High-Level Design
+A brief overview of your solution's architecture. A simple diagram is welcome.
+
+## Setup and Execution
+Clear instructions to set up the environment and run the project locally.
+
+## Decisions and Trade-offs
+Explain the key decisions you made in designing your agent and retrieval pipeline. What trade-offs did you consciously accept for the sake of this PoC, and what would you change or recommend for a production deployment?
+
+## Future Roadmap
+If this PoC were approved, what would be the next 3-5 steps to move it towards production? (Think about testing, observability, evaluation, scalability, additional features, etc.)
+-----------------------------------
