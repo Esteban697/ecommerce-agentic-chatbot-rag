@@ -17,9 +17,10 @@ from react_agent.ingestion import get_vectorstore
 
 @tool
 async def search_web(query: str, runtime: ToolRuntime[Context]) -> dict[str, Any]:
-    """Search the web for up-to-date information."""
+    """Search the web for up-to-date information only when relevant to selling of product catalog items."""
     max_results = getattr(runtime.context, "max_search_results", 5)
     wrapped = TavilySearch(max_results=max_results)
+    print(f"\n\n====== TOOL CALL: search_web ====== \n\n")
     print(f"Searching the web for query: {query} with max_results={max_results}")
     result = await wrapped.ainvoke({"query": query})
     print(f"Web search results: {result}")
@@ -48,13 +49,14 @@ def search_catalog_local(query: str) -> str:
     
     # Load the persisted vector store
     vectorstore = get_vectorstore()
+    print(f"\n\n====== TOOL CALL: search_catalog_local ====== \n\n")
     print(f"Searching the local catalog for query: {query}")
     # Retrieve top 3 relevant chunks
     docs = vectorstore.similarity_search(query, k=3)
     print(f"Retrieved {len(docs)} documents from local catalog for query: {query}")
-    # Print the descriptions of the retrieved documents for debugging
+    # Print the products retrieved for debugging (first 200 characters of each document)
     for i, doc in enumerate(docs):
-        print(f"Document {i+1}: {doc.page_content.get('product_name', 'No product name')} - {doc.page_content.get('description', 'No description')}")
+        print(f"Document {i+1}: {doc.page_content[:200]}...")
 
     # Join and return the content as a single context string for the LLM
     return "\n\n".join(doc.page_content for doc in docs)

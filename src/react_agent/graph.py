@@ -17,6 +17,17 @@ from react_agent.state import InputState, State
 from react_agent.tools import TOOLS
 from react_agent.utils import load_chat_model
 
+# Check that models is active
+async def check_model_active(model_name: str) -> bool:
+    """Check if the configured chat model is reachable and can answer a minimal prompt."""
+    try:
+        model = load_chat_model(model_name)
+        response = await model.ainvoke([HumanMessage(content="ping")])
+        return response is not None
+    except Exception as e:
+        print(f"Model health check failed for '{model_name}': {e}")
+        return False
+
 # Define the function that calls the model
 
 async def call_model(
@@ -41,8 +52,12 @@ async def call_model(
         system_time=datetime.now(tz=UTC).isoformat()
     )
 
-    #print the first 1000 characters of the system message for debugging
-    print(f"System message (first 1000 chars): {system_message[:1000]}")
+    # Print the first 500 characters of the system message for debugging
+    print(f"====== SYSTEM MESSAGE ======\n\n System message (first 500 chars): {system_message[:500]}...... \n\n")
+    # Print the first 200 characters of the last human message for debugging
+    last_human_message = state["messages"][-1] if state["messages"] else None
+    if isinstance(last_human_message, HumanMessage):
+        print(f"====== LAST HUMAN MESSAGE ======\n\n Last human message (first 200 chars): {last_human_message.content[:200]}\n\n")
 
     # Get the model's response
     response = cast(
@@ -63,8 +78,8 @@ async def call_model(
             ]
         }
     
-    #print the first 1000 characters of the model's response for debugging
-    print(f"Model response (first 1000 chars): {response.content[:1000]}")
+    # Print the first 1000 characters of the model's response for debugging
+    print(f"====== AI MESSAGE ======\n\n Model response (first 1000 chars): {response.content[:1000]}\n\n")
 
     # Return the model's response as a list to be added to existing messages
     return {"messages": [response]}

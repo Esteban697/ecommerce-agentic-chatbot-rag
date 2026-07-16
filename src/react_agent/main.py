@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from react_agent.context import Context
-from react_agent.graph import graph
+from react_agent.graph import graph, check_model_active
 from react_agent.prompts import SYSTEM_PROMPT
 from react_agent.ingestion import embeddings_and_vectorstore, deduplicate_products_in_separate_json
 
@@ -35,16 +35,20 @@ class ChatResponse(BaseModel):
     answer: str
     retrieved_products: list[dict[str, Any]]
 
+model_name = "openai/gpt-4.1"  # Default model for the agent. Can be changed in the /chat endpoint if needed.
+
 @app.get('/')
 async def root():
     return { 'message': 'API is running...'}
 
 @app.get('/health')
 async def health() -> dict[str, Any]:
+    is_model_active = await check_model_active(model_name)
     return {
-        "status": "ok",
+        "API_status": "Ok",
+        "model_active": is_model_active,
         "sites_available": SITE_IDS,
-            "raw_rows": UNIQUE_PRODUCTS_COUNT,
+        "unique_products": UNIQUE_PRODUCTS_COUNT,
         }
 
 
@@ -62,7 +66,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             "retrieved_products": [],
         },
         context = Context(
-            model="openai/gpt-4.1",
+            model=model_name,
             system_prompt=SYSTEM_PROMPT,
             site_id=payload.site_id,
             products=[], # TODO check if this makes sense
@@ -88,9 +92,11 @@ Description: The ingestion stage for the JSON dataset goes as follows:
 # Make sure to load environment variables from .env file
 load_dotenv()
 
+# Variables that can be inspected in the FastAPI /health endpoint
 SITE_IDS = []
 UNIQUE_PRODUCTS_COUNT = 0
 
+# Now running the ingestion process
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
 
@@ -99,12 +105,12 @@ UNIQUE_PRODUCTS_COUNT, SITE_IDS = deduplicate_products_in_separate_json(DATA_PAT
 # Initialize the embeddings and vector store for product retrieval
 embeddings_and_vectorstore(Path(str(DATA_PATH).replace(".json", "_deduplicated.json")), 15000)  # Chunk size is based in JSON dataset provided
 
-# THIS IS MOCK FROM HERE DOWN
+# MOCK--------------------------------------------------------------
 # with open(DATA_PATH, "r", encoding="utf-8") as f:
 #     RAW_PRODUCTS = json.load(f)
 
 # SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
+#-------------------------------------------------------------------
 
 print(f"Loaded {UNIQUE_PRODUCTS_COUNT} products from {DATA_PATH}.")
-print(f"Available site_ids: {SITE_IDS}")
-
+print(f"Available site_ids: {SITE_IDS}.")

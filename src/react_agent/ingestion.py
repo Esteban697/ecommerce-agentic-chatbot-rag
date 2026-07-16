@@ -119,9 +119,8 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
     documents_split = splitter.create_documents(documents, convert_lists=True)
     #create embeddings using Nomic's embedding model (extra param info taken from documentation)
     embeddings = NomicEmbeddings(
-        model=model_name,
+        model=model_name, # Nomic's `nomic-embed-text-v1.5` model was [trained with Matryoshka learning] (https://blog.nomic.ai/posts/nomic-embed-matryoshka)
         # dimensionality=256,
-        # Nomic's `nomic-embed-text-v1.5` model was [trained with Matryoshka learning](https://blog.nomic.ai/posts/nomic-embed-matryoshka)
         # to enable variable-length embeddings with a single model.
         # This means that you can specify the dimensionality of the embeddings at inference time.
         # The model supports dimensionality from 64 to 768.
@@ -143,7 +142,7 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
     )
     #Report what happened during the ingestion process
     print(f"Chroma vector store created with {len(documents_split)} documents.")
-    print(f"Embedding model: {embeddings.model}, Dimensionality: {embeddings.dimensionality}")
+    print(f"Embedding model chosen: {embeddings.model}")
     print(f"Vector store persisted at: {chroma_persist_directory}")
 
 # Provide a way to retrieve the vector store for use in other parts of the application
