@@ -4,17 +4,20 @@ Defines the API endpoints and the data ingestion logic."""
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-import json
 from pathlib import Path
-
 from typing import Any
+from uuid import uuid4
 
 from react_agent.context import Context
 from react_agent.graph import graph, check_model_active
 from react_agent.prompts import SYSTEM_PROMPT
-from react_agent.ingestion import embeddings_and_vectorstore, deduplicate_products_in_separate_json
+from react_agent.ingestion import (
+    embeddings_and_vectorstore,
+    deduplicate_products_in_separate_json,
+)
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+
 
 """ API Endpoint definition with FastAPI
 Description: Defines the API endpoints for the E-Commerce Chatbot Service.
@@ -29,13 +32,24 @@ app = FastAPI(
 class ChatRequest(BaseModel):
     site_id: int = Field(..., description="Shop context identifier")
     query: str = Field(..., min_length=1, description="Customer natural language question")
+    conversation_id: str | None = Field(
+        default=None,
+        description="Conversation identifier. Reuse it across turns to preserve memory."
+    )
 
 
 class ChatResponse(BaseModel):
     answer: str
+    conversation_id: str
     retrieved_products: list[dict[str, Any]]
 
-model_name = "openai/gpt-4.1"  # Default model for the agent. Can be changed in the /chat endpoint if needed.
+model_name = "openai/gpt-4.1"
+
+# Simple in-memory conversation store
+CONVERSATIONS: dict[str, list[BaseMessage]] = {}
+# Maximum number of messages to keep in memory for a conversation. 
+# Longer conversations should be saved externally and reloaded as needed.
+MAX_MESSAGES = 30
 
 @app.get('/')
 async def root():
@@ -60,24 +74,34 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             detail=f"Unknown site_id {payload.site_id}. Available site_ids: {SITE_IDS}",
         )
 
+    conversation_id = payload.conversation_id or str(uuid4())
+    history = CONVERSATIONS.get(conversation_id, [])[-MAX_MESSAGES:]
+
+    current_user_message = HumanMessage(content=payload.query)
+    input_messages = history + [current_user_message]
+
     result = await graph.ainvoke(
         {
-            "messages": [HumanMessage(content=payload.query)],
+            "messages": input_messages,
             "retrieved_products": [],
         },
-        context = Context(
+        context=Context(
             model=model_name,
             system_prompt=SYSTEM_PROMPT,
             site_id=payload.site_id,
-            products=[], # TODO check if this makes sense
+            products=[],  # keep as-is for now unless you actually use runtime.context.products
         ),
     )
 
     final_message = result["messages"][-1]
     answer = final_message.content if hasattr(final_message, "content") else str(final_message)
 
+    updated_messages = result["messages"]
+    CONVERSATIONS[conversation_id] = updated_messages
+
     return ChatResponse(
         answer=answer,
+        conversation_id=conversation_id,
         retrieved_products=result.get("retrieved_products", []),
     )
 
