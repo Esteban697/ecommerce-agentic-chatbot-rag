@@ -6,8 +6,8 @@ accurate and relevant product information based on user queries.
 """
 
 from langchain_text_splitters import RecursiveJsonSplitter
-from langchain_community.document_loaders import JSONLoader
-from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
+from langchain_chroma import Chroma
 from langchain_nomic.embeddings import NomicEmbeddings
 from typing import Any
 import json
@@ -71,10 +71,40 @@ def strip_html(value: str | None) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 def load_json_data(file_path: str) -> list[dict[str, Any]]:
-    """Load JSON data from a file and return it as a list of dictionaries."""
-    loader = JSONLoader(file_path=file_path, jq_schema=".[]", text_content=False,)
-    documents = loader.load()
-    return [doc.metadata for doc in documents]
+    """Load product JSON data and convert each product into a searchable Document."""
+    with open(file_path, "r", encoding="utf-8") as f:
+        products: list[dict[str, Any]] = json.load(f)
+
+    documents: list[dict[str, Any]] = []
+
+    for i, row in enumerate(products):
+        page_content = "\n".join([
+            f"Product name: {row.get('product_name', '')}",
+            f"Variant name: {row.get('variant_name', '')}",
+            f"Brand: {row.get('brands', '')}",
+            f"Pet type: {row.get('pet_type', '')}",
+            f"Summary: {row.get('summary_text', '')}",
+            f"Description: {row.get('description_text', '')}",
+            f"Ingredients: {row.get('ingredients', '')}",
+            f"Feeding recommendations: {row.get('feeding_recommendations', '')}",
+            f"Search text: {row.get('search_blob', '')}",
+        ]).strip()
+
+        metadata = {
+            "source": str(file_path),
+            "seq_num": i,
+            "site_id": row.get("site_id"),
+            "product_id": row.get("product_id"),
+            "article_id": row.get("article_id"),
+            "product_name": row.get("product_name"),
+            "variant_name": row.get("variant_name"),
+            "brands": row.get("brands"),
+            "pet_type": row.get("pet_type"),
+        }
+
+        documents.append({"page_content": page_content, "metadata": metadata})
+
+    return documents
 
 def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chroma:
     """Load JSON data, split it into chunks, create embeddings, and store them in a vector store."""
@@ -86,7 +116,7 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
     #load the JSON data from the specified file path
     documents = load_json_data(file_path)
     #split the documents into smaller chunks for embedding
-    documents_split = splitter.create_documents(documents)
+    documents_split = splitter.create_documents(documents, convert_lists=True)
     #create embeddings using Nomic's embedding model (extra param info taken from documentation)
     embeddings = NomicEmbeddings(
         model=model_name,
@@ -95,7 +125,7 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
         # to enable variable-length embeddings with a single model.
         # This means that you can specify the dimensionality of the embeddings at inference time.
         # The model supports dimensionality from 64 to 768.
-        # inference_mode="remote",
+        # inference_mode="local",
         # One of `remote`, `local` (Embed4All), or `dynamic` (automatic). Defaults to `remote`.
         # api_key=... , # if using remote inference,
         # device="cpu",
@@ -122,7 +152,8 @@ def get_vectorstore() -> Chroma:
     embeddings = NomicEmbeddings(model=model_name, inference_mode="local")
     vectorstore = Chroma(
         collection_name="rag-chroma",
-        embedding=embeddings,
+        embedding_function=embeddings,
         persist_directory=chroma_persist_directory
     )
+    print(f"Loaded Chroma vector store from {chroma_persist_directory} with {vectorstore._collection.count()} documents.")
     return vectorstore
