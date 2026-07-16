@@ -11,6 +11,28 @@ AI-assisted coding was able to put together an initial template of what the Fast
 Also, provided relevant code to de-duplicate the article-products in the dataset and a Mock to provide answers from that data when called.
 Nevertheless, I added to the current structure of the React Agent template from LangChain to connect it to a relevant component that can act as ChatBot.
 
+#### GET root (/):
+Just allows for a quick check when running the Uvicorn server locally, you can see the confirmation message in the browser when it loads the root.
+
+#### GET (/health)
+I useful call to check that API is running, that model is being able to respond to the calls, which site IDs
+can be used for the chatbot to have information about and that ingestion stagewas able to sort the products
+in the dataset provided.
+
+#### POST (/chat)
+The actual exposed method to use the chatbot from any compatible application. It expects a specific JSON:
+
+[JSON]
+
+It accessed the graph built with LangGraph to be able to activate the agent that can process what is asked as 
+Human message and use its tool (mainly RAG tool) to inspect if a product/s can match the request.
+This process expects the agent to analyze the retrieve results from the dataset and produce an polite and useful
+answer as it will be the expected string to be displayed in the chat for the end user.
+
+The response has the following JSON structure:
+
+[JSON]
+
 ### 2) RAG Pipeline
 
 and looking at the dataset provided I start with:
