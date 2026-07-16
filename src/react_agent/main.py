@@ -12,7 +12,7 @@ from typing import Any
 from react_agent.context import Context
 from react_agent.graph import graph
 from react_agent.prompts import SYSTEM_PROMPT
-from react_agent.ingestion import embeddings_and_vectorstore
+from react_agent.ingestion import embeddings_and_vectorstore, deduplicate_products_in_separate_json
 
 from langchain_core.messages import HumanMessage
 
@@ -44,8 +44,8 @@ async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "sites_available": SITE_IDS,
-        "raw_rows": len(RAW_PRODUCTS),
-    }
+            "raw_rows": UNIQUE_PRODUCTS_COUNT,
+        }
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -65,7 +65,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             model="openai/gpt-4.1",
             system_prompt=SYSTEM_PROMPT,
             site_id=payload.site_id,
-            products=RAW_PRODUCTS,
+            products=[], # TODO check if this makes sense
         ),
     )
 
@@ -80,23 +80,31 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 print("Starting FastAPI backend for E-Commerce Chatbot Service...")
 
 """ Data Ingestion 
-Description: TODO
+Description: The ingestion stage for the JSON dataset goes as follows:
+1. Deduplicate the products in the JSON dataset and save the unique products to a new JSON file.
+2. Create embeddings for the unique products using Nomic's embedding model using the new JSON file.
+3. Store the embeddings in a Chroma local vector store for efficient retrieval during product searches.
 """
 # Make sure to load environment variables from .env file
 load_dotenv()
 
+SITE_IDS = []
+UNIQUE_PRODUCTS_COUNT = 0
+
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
 
+UNIQUE_PRODUCTS_COUNT, SITE_IDS = deduplicate_products_in_separate_json(DATA_PATH)
+
 # Initialize the embeddings and vector store for product retrieval
-embeddings_and_vectorstore(DATA_PATH)
+embeddings_and_vectorstore(Path(str(DATA_PATH).replace(".json", "_deduplicated.json")), 15000)  # Chunk size is based in JSON dataset provided
 
 # THIS IS MOCK FROM HERE DOWN
-with open(DATA_PATH, "r", encoding="utf-8") as f:
-    RAW_PRODUCTS = json.load(f)
+# with open(DATA_PATH, "r", encoding="utf-8") as f:
+#     RAW_PRODUCTS = json.load(f)
 
-SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
+# SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
 
-print(f"Loaded {len(RAW_PRODUCTS)} products from {DATA_PATH}.")
+print(f"Loaded {UNIQUE_PRODUCTS_COUNT} products from {DATA_PATH}.")
 print(f"Available site_ids: {SITE_IDS}")
 

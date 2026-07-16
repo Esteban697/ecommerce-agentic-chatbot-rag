@@ -10,11 +10,65 @@ from langchain_community.document_loaders import JSONLoader
 from langchain_community.vectorstores import Chroma
 from langchain_nomic.embeddings import NomicEmbeddings
 from typing import Any
+import json
+from pathlib import Path
+import html
+import re
 import os
 import nomic
 
 model_name = "nomic-embed-text-v1.5"  # Nomic's embedding model
 chroma_persist_directory = "./chroma_db"  # Directory to persist the Chroma vector store
+
+
+def deduplicate_products_in_separate_json(file_path: str) -> tuple[int, list[int]]:
+    """Deduplicate products in a JSON file and save the unique products to a new JSON file
+    Args:
+        file_path (str): Path to the input JSON file containing product data.
+    Returns:
+        int: Number of unique products after deduplication.
+        list[int]: List of unique site IDs found in the product data.
+    """
+    
+    RAW_PRODUCTS: list[dict[str, Any]] = json.load(open(file_path, "r", encoding="utf-8"))
+    SITE_IDS = sorted({row['site_id'] for row in RAW_PRODUCTS})
+    print("Site IDs found in the dataset:", SITE_IDS)
+    print("Opened JSON file and loaded products. Deduplicating now...")
+    # Deduplicate exact duplicates, which exist in the dataset for some article_ids.
+    seen = set()
+    PRODUCTS: list[dict[str, Any]] = []
+    for row in RAW_PRODUCTS:
+        key = json.dumps(row, sort_keys=True, ensure_ascii=False)
+        if key not in seen:
+            seen.add(key)
+            row = dict(row)
+            row['summary_text'] = strip_html(row.get('summary'))
+            row['description_text'] = strip_html(row.get('description'))
+            row['search_blob'] = ' '.join([
+                str(row.get('product_name', '')),
+                str(row.get('variant_name', '')),
+                str(row.get('brands', '')),
+                str(row.get('pet_type', '')),
+                row['summary_text'],
+                row['description_text'],
+                str(row.get('ingredients', '')),
+                str(row.get('feeding_recommendations', '')),
+            ]).lower()
+            PRODUCTS.append(row)
+    print(f"Deduplicated products. {len(PRODUCTS)} unique products remain. Saving to new JSON file...")
+    # Save the deduplicated products to a new JSON file
+    deduplicated_file_path = Path(str(file_path).replace(".json", "_deduplicated.json"))
+    with open(deduplicated_file_path, "w", encoding="utf-8") as f:
+        json.dump(PRODUCTS, f)
+    print(f"Saved deduplicated products to {deduplicated_file_path}")
+    return len(PRODUCTS), SITE_IDS
+
+def strip_html(value: str | None) -> str:
+    if not value:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", value)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
 
 def load_json_data(file_path: str) -> list[dict[str, Any]]:
     """Load JSON data from a file and return it as a list of dictionaries."""
