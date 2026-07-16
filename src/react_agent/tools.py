@@ -20,20 +20,42 @@ async def search_web(query: str, runtime: ToolRuntime[Context]) -> dict[str, Any
     """Search the web for up-to-date information."""
     max_results = getattr(runtime.context, "max_search_results", 5)
     wrapped = TavilySearch(max_results=max_results)
+    print(f"Searching the web for query: {query} with max_results={max_results}")
     result = await wrapped.ainvoke({"query": query})
+    print(f"Web search results: {result}")
     return dict(result)
 
 @tool
 def search_catalog_local(query: str) -> str:
-    """Queries the internal vector storage for local information, 
-    business documentation, and facts matching the user query."""
+    """Search the local product/catalog knowledge base for store-specific information.
+
+    Use this tool when the user asks about products, categories, brands, prices,
+    availability, specifications, descriptions, recommendations, comparisons, or
+    any information that should come from the shop's internal catalog or business data.
+
+    Prefer this tool over web search for ecommerce questions, because web search is for
+    general or up-to-date public information and does not reliably return the store's
+    actual product catalog data.
+
+    Examples:
+    - "Do you have grain-free dog food?"
+    - "What cat litter products are available?"
+    - "Compare Royal Canin vs Purina products in the catalog"
+    - "Show me cheap toys for small dogs"
+
+    Input should be a short natural-language product search query.
+    Returns relevant catalog/document snippets from the local vector store."""
     
     # Load the persisted vector store
     vectorstore = get_vectorstore()
-
+    print(f"Searching the local catalog for query: {query}")
     # Retrieve top 3 relevant chunks
     docs = vectorstore.similarity_search(query, k=3)
-    
+    print(f"Retrieved {len(docs)} documents from local catalog for query: {query}")
+    # Print the descriptions of the retrieved documents for debugging
+    for i, doc in enumerate(docs):
+        print(f"Document {i+1}: {doc.page_content.get('product_name', 'No product name')} - {doc.page_content.get('description', 'No description')}")
+
     # Join and return the content as a single context string for the LLM
     return "\n\n".join(doc.page_content for doc in docs)
 
