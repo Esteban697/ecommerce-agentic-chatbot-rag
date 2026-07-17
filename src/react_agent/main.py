@@ -177,8 +177,13 @@ with open(DATA_PATH, "r", encoding="utf-8") as f:
 
 UNIQUE_PRODUCTS_COUNT, SITE_IDS = deduplicate_products_in_separate_json(DATA_PATH)
 
-# Initialize the embeddings and vector store for product retrieval
-embeddings_and_vectorstore(Path(str(DATA_PATH).replace(".json", "_deduplicated.json")), 15000)  # Chunk size is based in JSON dataset provided
+# Initialize one vector store per site-specific deduplicated JSON
+for site_id in SITE_IDS:
+    site_json_path = Path(DATA_PATH).with_name(
+        f"{Path(DATA_PATH).stem}_deduplicated_site_{site_id}.json"
+    )
+    print(f"Building vector store for site_id={site_id} from {site_json_path}")
+    embeddings_and_vectorstore(site_json_path, site_id=site_id, max_chunk_size=15000)
 
 # MOCK--------------------------------------------------------------
 # with open(DATA_PATH, "r", encoding="utf-8") as f:

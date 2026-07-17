@@ -70,8 +70,9 @@ def search_catalog_local(query: str, runtime: ToolRuntime[Context]) -> dict[str,
     - "retrieved_products_ids: the ids to pass on to main scope for fetching enriched data
     """
     
-    # Load the persisted vector store
-    vectorstore = get_vectorstore()
+    # Load the persisted vector store according to site_id
+    site_id = runtime.context.site_id
+    vectorstore = get_vectorstore(site_id)
     print(f"\n\n====== TOOL CALL: search_catalog_local ====== \n\n")
     print(f"Searching the local catalog for query: {query}")
     # Retrieve top 3 relevant chunks

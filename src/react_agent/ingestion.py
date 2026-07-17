@@ -22,46 +22,43 @@ chroma_persist_directory = "./chroma_db"  # Directory to persist the Chroma vect
 
 
 def deduplicate_products_in_separate_json(file_path: str) -> tuple[int, list[int]]:
-    """Deduplicate products in a JSON file and save the unique products to a new JSON file
-    Args:
-        file_path (str): Path to the input JSON file containing product data.
-    Returns:
-        int: Number of unique products after deduplication.
-        list[int]: List of unique site IDs found in the product data.
-    """
-    
-    RAW_PRODUCTS: list[dict[str, Any]] = json.load(open(file_path, "r", encoding="utf-8"))
-    SITE_IDS = sorted({row['site_id'] for row in RAW_PRODUCTS})
-    print("Site IDs found in the dataset:", SITE_IDS)
+    """Deduplicate products in a JSON file and save the unique products into separate JSON files per site_id."""
+
+    source_path = Path(file_path)
+
+    with open(source_path, "r", encoding="utf-8") as f:
+        raw_products: list[dict[str, Any]] = json.load(f)
+
+    site_ids = sorted({row["site_id"] for row in raw_products})
+    print("Site IDs found in the dataset:", site_ids)
     print("Opened JSON file and loaded products. Deduplicating now...")
-    # Deduplicate exact duplicates, which exist in the dataset for some article_ids.
+
     seen = set()
-    PRODUCTS: list[dict[str, Any]] = []
-    for row in RAW_PRODUCTS:
+    products: list[dict[str, Any]] = []
+
+    for row in raw_products:
         key = json.dumps(row, sort_keys=True, ensure_ascii=False)
         if key not in seen:
             seen.add(key)
-            row = dict(row)
-            row['summary_text'] = strip_html(row.get('summary'))
-            row['description_text'] = strip_html(row.get('description'))
-            row['search_blob'] = ' '.join([
-                str(row.get('product_name', '')),
-                str(row.get('variant_name', '')),
-                str(row.get('brands', '')),
-                str(row.get('pet_type', '')),
-                row['summary_text'],
-                row['description_text'],
-                str(row.get('ingredients', '')),
-                str(row.get('feeding_recommendations', '')),
-            ]).lower()
-            PRODUCTS.append(row)
-    print(f"Deduplicated products. {len(PRODUCTS)} unique products remain. Saving to new JSON file...")
-    # Save the deduplicated products to a new JSON file
-    deduplicated_file_path = Path(str(file_path).replace(".json", "_deduplicated.json"))
-    with open(deduplicated_file_path, "w", encoding="utf-8") as f:
-        json.dump(PRODUCTS, f)
-    print(f"Saved deduplicated products to {deduplicated_file_path}")
-    return len(PRODUCTS), SITE_IDS
+            products.append(dict(row))
+
+    print(f"Deduplicated products. {len(products)} unique products remain. Saving site-specific JSON files...")
+
+    products_by_site: dict[int, list[dict[str, Any]]] = {}
+    for row in products:
+        site_id = row.get("site_id")
+        if site_id is not None:
+            products_by_site.setdefault(site_id, []).append(row)
+
+    for site_id, site_products in products_by_site.items():
+        site_file_path = source_path.with_name(
+            f"{source_path.stem}_deduplicated_site_{site_id}.json"
+        )
+        with open(site_file_path, "w", encoding="utf-8") as f:
+            json.dump(site_products, f, ensure_ascii=False, indent=2)
+        print(f"Saved {len(site_products)} deduplicated products for site_id={site_id} to {site_file_path}")
+
+    return len(products), site_ids
 
 def strip_html(value: str | None) -> str:
     if not value:
@@ -106,7 +103,7 @@ def load_json_data(file_path: str) -> list[dict[str, Any]]:
 
     return documents
 
-def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chroma:
+def embeddings_and_vectorstore(file_path: str | Path, site_id: int, max_chunk_size: int = 300) -> Chroma:
     """Load JSON data, split it into chunks, create embeddings, and store them in a vector store."""
 
     #log in to Nomic using the API key from environment variables
@@ -114,7 +111,7 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
     #the data set will be split into JSON chunks of this size (in characters) before creating embeddings
     splitter = RecursiveJsonSplitter(max_chunk_size)
     #load the JSON data from the specified file path
-    documents = load_json_data(file_path)
+    documents = load_json_data(str(file_path))
     #split the documents into smaller chunks for embedding
     documents_split = splitter.create_documents(documents, convert_lists=True)
     #create embeddings using Nomic's embedding model (extra param info taken from documentation)
@@ -124,7 +121,7 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
         # to enable variable-length embeddings with a single model.
         # This means that you can specify the dimensionality of the embeddings at inference time.
         # The model supports dimensionality from 64 to 768.
-        # inference_mode="local",
+        inference_mode="remote",
         # One of `remote`, `local` (Embed4All), or `dynamic` (automatic). Defaults to `remote`.
         # api_key=... , # if using remote inference,
         # device="cpu",
@@ -133,12 +130,15 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
         # the docstring for `GPT4All.__init__` for more info. Typically
         # defaults to CPU. Do not use on macOS.
     )
+    persist_directory = Path(chroma_persist_directory) / f"site_{site_id}"
+    collection_name = f"rag-chroma-site-{site_id}"
+
     #create a Chroma vector store from the split documents and embeddings, and persist it to disk
     vectorstore = Chroma.from_documents(
         documents_split,
         embeddings,
-        collection_name="rag-chroma",
-        persist_directory=chroma_persist_directory
+        collection_name=collection_name,
+        persist_directory=str(persist_directory),
     )
     #Report what happened during the ingestion process
     print(f"Chroma vector store created with {len(documents_split)} documents.")
@@ -146,13 +146,18 @@ def embeddings_and_vectorstore(file_path: str, max_chunk_size: int = 300) -> Chr
     print(f"Vector store persisted at: {chroma_persist_directory}")
 
 # Provide a way to retrieve the vector store for use in other parts of the application
-def get_vectorstore() -> Chroma:
-    """Load the persisted vector store from disk."""
+def get_vectorstore(site_id: int, chroma_base_dir: str | Path = "./chroma_db") -> Chroma:
     embeddings = NomicEmbeddings(model=model_name, inference_mode="local")
+    persist_directory = Path(chroma_base_dir) / f"site_{site_id}"
+
     vectorstore = Chroma(
-        collection_name="rag-chroma",
+        collection_name=f"rag-chroma-site-{site_id}",
         embedding_function=embeddings,
-        persist_directory=chroma_persist_directory
+        persist_directory=str(persist_directory),
     )
-    print(f"Loaded Chroma vector store from {chroma_persist_directory} with {vectorstore._collection.count()} documents.")
+
+    print(
+        f"Loaded site-specific Chroma vector store for site_id={site_id} "
+        f"from {persist_directory} with {vectorstore._collection.count()} documents."
+    )
     return vectorstore
