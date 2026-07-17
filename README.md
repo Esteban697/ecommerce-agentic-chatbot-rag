@@ -2,15 +2,15 @@
 
 The following diagram shows both how the different components connect to each other (without going inside of the LangGraph based graph that builds the agent) and also shows the expected sequence of components that run when using the Uvicorn server to run the PoC:
 
-- First, the execution takes us to the data ingestion stage that takes the JSON file with the product catalog that the diagram represents as Dataset 0. This will be parsed and get rid of duplicated products (detected in our first analysis of the dataset). After algorithmic cleaning and following step will produce one new JSON file per each site_id provided inside Dataset 0. This allows for a cleaner data management without the concern of mixing products between sites. Next, each JSON file will be treated as the source for embeddings and vector database to produce. The Nomic model persforms a remote inference to produce the embeddings and these are passed on to Chroma to produce a dedicated vector database for that group of products of a specific site. This will be useful when retrieval occurs.
+* First, the execution takes us to the data ingestion stage that takes the JSON file with the product catalog that the diagram represents as Dataset 0. This will be parsed and get rid of duplicated products (detected in our first analysis of the dataset). After algorithmic cleaning and following step will produce one new JSON file per each site_id provided inside Dataset 0. This allows for a cleaner data management without the concern of mixing products between sites. Next, each JSON file will be treated as the source for embeddings and vector database to produce. The Nomic model persforms a remote inference to produce the embeddings and these are passed on to Chroma to produce a dedicated vector database for that group of products of a specific site. This will be useful when retrieval occurs.
 
-- Second, when the data is locally saved and prepared for consumption, the user can start sending queries through the API implemented with FastAPI. The POST call needs to provide a JSON with query and site_id (and optional conversation_id normally from second message onwards). If you provide the conversation_id that comes in the first response of this API call, you can enjoy a conversation the chatbot will follow with semantic memory.
+* Second, when the data is locally saved and prepared for consumption, the user can start sending queries through the API implemented with FastAPI. The POST call needs to provide a JSON with query and site_id (and optional conversation_id normally from second message onwards). If you provide the conversation_id that comes in the first response of this API call, you can enjoy a conversation the chatbot will follow with semantic memory.
 
-- Third, when the Chatbot agent receives queries, the LLM (in this case "openai/gpt-4.1") will decide when and which tool to call based on the system prompt that describes in detail what are the guardrails set for this chatbot to focus on product recommendation. The web_search tool based on Tavily is provided as a means to keep the chatbot situationally aware (even though a current_time value is passed to the system prompt) to avoid isolating it too much. Anyway, the core functionality here is the Tool Call search_catalog_local which uses the RAG to call for matches in the vector database for the specific site_id to provide around 3 product suggestions. Also, the suggested product names are pass along the graph to the main logic that runs the POST call to match these products in the original (site-specific) JSON file that can provide all the details back through the API response. This avoids passing lots of data back to the LLM where token usage can blow up.
+* Third, when the Chatbot agent receives queries, the LLM (in this case "openai/gpt-4.1") will decide when and which tool to call based on the system prompt that describes in detail what are the guardrails set for this chatbot to focus on product recommendation. The web_search tool based on Tavily is provided as a means to keep the chatbot situationally aware (even though a current_time value is passed to the system prompt) to avoid isolating it too much. Anyway, the core functionality here is the Tool Call search_catalog_local which uses the RAG to call for matches in the vector database for the specific site_id to provide around 3 product suggestions. Also, the suggested product names are pass along the graph to the main logic that runs the POST call to match these products in the original (site-specific) JSON file that can provide all the details back through the API response. This avoids passing lots of data back to the LLM where token usage can blow up.
 
-- Finally, the step 4 builds comprohensive answer combining:
--- The LLM polite and thorough answer which product is mostly recommended and why.
--- The data structures of the products retrieved. This carries a ton of value for any application consuming the API as the structured data can be the base for many recommendation features and following steps to acheive the purchase.
+* Finally, the step 4 builds comprohensive answer combining:
+    * The LLM polite and thorough answer which product is mostly recommended and why.
+    * The data structures of the products retrieved. This carries a ton of value for any application consuming the API as the structured data can be the base for many recommendation features and following steps to acheive the purchase.
 
 ![Getting Started](Diagram.png)
 
@@ -129,31 +129,31 @@ The third decision was to **incorporate a conversation_id** value in the API req
 ## Future Roadmap
 If this PoC were approved, what would be the next 3-5 steps to move it towards production? (Think about testing, observability, evaluation, scalability, additional features, etc.)
 
-- **Observability:** as mentioned above this project is not hard to connect to LangSmith where a whole suit of observability and testing tools are available. 
+* **Observability:** as mentioned above this project is not hard to connect to LangSmith where a whole suit of observability and testing tools are available. 
 
-- **Testing:** the different steps (especially the ones dealing with datasets) should include testing in different levels to check that things are runnig as expected. Also, depending on which integrations are added to this PoC, the corresponding tests should be included. The "\health" route implemented in the API is part of the effort to be able to test along the way of implementation.
+* **Testing:** the different steps (especially the ones dealing with datasets) should include testing in different levels to check that things are runnig as expected. Also, depending on which integrations are added to this PoC, the corresponding tests should be included. The "\health" route implemented in the API is part of the effort to be able to test along the way of implementation.
 
-- **Scalability:** 
+* **Scalability:** 
 There are **two big concerns** when it comes to scalability:
-- **State handling:** Too many state handling attibutions to the API will make it harder to scale up allowing for several tenants. Better to move conversation memory and retrieved ID history out of process memory into Redis or a database, so the API becomes horizontally scalable. 
+    * **State handling:** Too many state handling attibutions to the API will make it harder to scale up allowing for several tenants. Better to move conversation memory and retrieved ID history out of process memory into Redis or a database, so the API becomes horizontally scalable. 
 
 These are the parts that can be remove from process memory first:
-- conversation messages, retrieved product IDs, per-conversation site context, response summaries, optional user/session metadata.
+    * conversation messages, retrieved product IDs, per-conversation site context, response summaries, optional user/session metadata.
 That way the HTTP worker itself “forgets” everything after responding, even though the system still supports multi-turn chats.
 
-- **Latency:**
+* **Latency:**
 The LLM requests take some good time to be produced, especially when using the RAG pipeline retrieval so considering adding rate limiting, request tracing, and metrics on retrieval time, LLM time, and full-request latency, since scaling problems usually surface first as tail-latency issues rather than average latency issues.
 
 For your current architecture, we can prioritize:
-- Shorten the system prompt and tool instructions, because every request pays that token cost.
-- Limit retrieved context aggressively, for example smaller k, shorter chunks, or a hard token budget on inserted context.
-- Use a faster model for most requests and reserve a slower, stronger model only for difficult cases.
-- Cache repeated or semantically similar results, especially for common catalog questions.
+    * Shorten the system prompt and tool instructions, because every request pays that token cost.
+    * Limit retrieved context aggressively, for example smaller k, shorter chunks, or a hard token budget on inserted context.
+    * Use a faster model for most requests and reserve a slower, stronger model only for difficult cases.
+    * Cache repeated or semantically similar results, especially for common catalog questions.
 
 **Other concerns:**
-- **Startup and ingestion:** Ingestion runs at app startup so the API readiness becomes coupled to data preparation and embedding setup. That is manageable in development, but in production it hurts deploy speed, complicates autoscaling, and makes every new pod or worker repeat expensive initialization work. A big improvement we be keeping ingestion and vectorstore creation out of API startup, making them background jobs or deployment-time jobs.
+    * **Startup and ingestion:** Ingestion runs at app startup so the API readiness becomes coupled to data preparation and embedding setup. That is manageable in development, but in production it hurts deploy speed, complicates autoscaling, and makes every new pod or worker repeat expensive initialization work. A big improvement we be keeping ingestion and vectorstore creation out of API startup, making them background jobs or deployment-time jobs.
 
-- **Additional features:** 
+* **Additional features:** 
 Storage is one big aspect that needs preparation before taking this PoC to production. **Changing the local storage solutions** picked for this PoC and making the cloud storage will be natural step to take for deployment of this solution. Remote embeddings like the one used here is one good example for what is needed, but the vector database can be an external resource to used for the RAG in production as well as the access to the JSON files. So that storage components replacement would be the first concern for moving all to the deployable and scalable infrastructure.
 
 As mentioned above in the decisions, the **RAG pipeline can grow to become something more sophisticated.** A different datasets separation strategy can be implemented to include another global dataset that can be accessed as *site_0* or else. A different embedding can be chosen other than Nomic's. A different vector storage can be selected to change Chroma (I needed to update the library from LangGraph dealing with this type of database because of obsolete code). And the overall RAG pipeline architecture can evolve into something more dynamic: like Agentic RAG where the information retrieved is check by the same or other LLMs that can prepate the data before sending it back to the chatbot agent.
