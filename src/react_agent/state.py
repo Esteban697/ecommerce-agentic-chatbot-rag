@@ -15,5 +15,5 @@ class InputState(TypedDict):
 
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
-    retrieved_products: list[dict[str, Any]]
+    retrieved_products_ids: list[int]
     is_last_step: IsLastStep

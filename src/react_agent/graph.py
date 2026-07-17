@@ -17,6 +17,8 @@ from react_agent.state import InputState, State
 from react_agent.tools import TOOLS
 from react_agent.utils import load_chat_model
 
+import json
+
 # Check that models is active
 async def check_model_active(model_name: str) -> bool:
     """Check if the configured chat model is reachable and can answer a minimal prompt."""
@@ -91,7 +93,37 @@ builder = StateGraph(State, input_schema=InputState, context_schema=Context)
 
 # Define the two nodes we will cycle between
 builder.add_node(call_model)
-builder.add_node("tools", ToolNode(TOOLS))
+# Define a wrapper tool node to handover the retrieved_products_ids from tool call (replacing "builder.add_node("tools", ToolNode(TOOLS)"))
+tool_node = ToolNode(TOOLS)
+
+async def run_tools(state: State, runtime: Runtime[Context]) -> dict:
+    result = await tool_node.ainvoke(state, runtime=runtime)
+
+    retrieved_products_ids = state.get("retrieved_products_ids", []).copy()
+
+    for message in result.get("messages", []):
+        content = getattr(message, "content", None)
+
+        if isinstance(content, dict):
+            retrieved_products_ids.extend(content.get("retrieved_products_ids", []))
+            continue
+
+        if isinstance(content, str):
+            try:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict):
+                    retrieved_products_ids.extend(parsed.get("retrieved_products_ids", []))
+            except json.JSONDecodeError:
+                pass
+
+    retrieved_products_ids = list(dict.fromkeys(retrieved_products_ids))
+
+    return {
+        "messages": result["messages"],
+        "retrieved_products_ids": retrieved_products_ids,
+    }
+
+builder.add_node("tools", run_tools)
 
 # Set the entrypoint as `call_model`
 # This means that this node is the first one called

@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+import json
+
 from react_agent.context import Context
 from react_agent.graph import graph, check_model_active
 from react_agent.prompts import SYSTEM_PROMPT
@@ -37,11 +39,34 @@ class ChatRequest(BaseModel):
         description="Conversation identifier. Reuse it across turns to preserve memory."
     )
 
+class Product(BaseModel):
+    product_id: int | None = None
+    article_id: int | None = None
+    variant_id: str | None = None
+    site_id: int | None = None
+    locale: str | None = None
+    pet_type: str | None = None
+    brands: str | None = None
+    product_name: str | None = None
+    variant_name: str | None = None
+    summary: str | None = None
+    description: str | None = None
+    ingredients: str | None = None
+    feeding_recommendations: str | None = None
+    price: float | None = None
+    currency: str | None = None
+    discount_label: str | None = None
+    rating_average: float | None = None
+    rating_count: int | None = None
+    stock_units: int | None = None
+    margin_pct: float | None = None
+    monthly_sales_units: int | None = None
+    revenue_last_30d: float | None = None
 
 class ChatResponse(BaseModel):
     answer: str
+    retrieved_products: list[Product]
     conversation_id: str
-    retrieved_products: list[dict[str, Any]]
 
 model_name = "openai/gpt-4.1"
 
@@ -50,6 +75,8 @@ CONVERSATIONS: dict[str, list[BaseMessage]] = {}
 # Maximum number of messages to keep in memory for a conversation. 
 # Longer conversations should be saved externally and reloaded as needed.
 MAX_MESSAGES = 30
+# Simple in-memory ids store
+ID_HISTORY: list[int]
 
 @app.get('/')
 async def root():
@@ -76,20 +103,25 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
     conversation_id = payload.conversation_id or str(uuid4())
     history = CONVERSATIONS.get(conversation_id, [])[-MAX_MESSAGES:]
+    ID_HISTORY = []
 
+    # Update the context with the current site_id and products for this conversation
     current_user_message = HumanMessage(content=payload.query)
     input_messages = history + [current_user_message]
+    # Retrieve previously retrieved products for this conversation, if any
+    previous_products = [Product(**p) for p in CONVERSATIONS.get(conversation_id, []) if isinstance(p, Product)]
 
     result = await graph.ainvoke(
         {
             "messages": input_messages,
-            "retrieved_products": [],
+            "retrieved_products": previous_products,
+            "retrieved_products_ids": ID_HISTORY
         },
         context=Context(
             model=model_name,
             system_prompt=SYSTEM_PROMPT,
             site_id=payload.site_id,
-            products=[],  # keep as-is for now unless you actually use runtime.context.products
+            products=RAW_PRODUCTS,
         ),
     )
 
@@ -99,10 +131,26 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     updated_messages = result["messages"]
     CONVERSATIONS[conversation_id] = updated_messages
 
+    # Get the list of IDs from graph State, originally from tool call
+    retrieved_products_ids = result.get("retrieved_products_ids", [])
+    print(f"retrieved_products_ids from graph result: {retrieved_products_ids}")
+    ID_HISTORY.append(retrieved_products_ids)
+
+    site_products = [
+        p for p in RAW_PRODUCTS
+        if p.get("site_id") == payload.site_id
+    ]
+
+    retrieved_products = [
+        Product(**p)
+        for p in site_products
+        if p.get("article_id") in retrieved_products_ids
+    ]
+
     return ChatResponse(
         answer=answer,
         conversation_id=conversation_id,
-        retrieved_products=result.get("retrieved_products", []),
+        retrieved_products=retrieved_products
     )
 
 print("Starting FastAPI backend for E-Commerce Chatbot Service...")
@@ -123,6 +171,9 @@ UNIQUE_PRODUCTS_COUNT = 0
 # Now running the ingestion process
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
+
+with open(DATA_PATH, "r", encoding="utf-8") as f:
+    RAW_PRODUCTS = json.load(f)
 
 UNIQUE_PRODUCTS_COUNT, SITE_IDS = deduplicate_products_in_separate_json(DATA_PATH)
 
