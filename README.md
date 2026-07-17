@@ -134,13 +134,13 @@ The third decision was to **incorporate a conversation_id** value in the API req
 
 **Scalability:** 
 There are **two big concerns** when it comes to scalability:
-    * **State handling:** Too many state handling attibutions to the API will make it harder to scale up allowing for several tenants. Better to move conversation memory and retrieved ID history out of process memory into Redis or a database, so the API becomes horizontally scalable. 
+**State handling:** Too many state handling attibutions to the API will make it harder to scale up allowing for several tenants. Better to move conversation memory and retrieved ID history out of process memory into Redis or a database, so the API becomes horizontally scalable. 
 
 These are the parts that can be remove from process memory first:
     * conversation messages, retrieved product IDs, per-conversation site context, response summaries, optional user/session metadata.
 That way the HTTP worker itself “forgets” everything after responding, even though the system still supports multi-turn chats.
 
-* **Latency:**
+**Latency:**
 The LLM requests take some good time to be produced, especially when using the RAG pipeline retrieval so considering adding rate limiting, request tracing, and metrics on retrieval time, LLM time, and full-request latency, since scaling problems usually surface first as tail-latency issues rather than average latency issues.
 
 For your current architecture, we can prioritize:
