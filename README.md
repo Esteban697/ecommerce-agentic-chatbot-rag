@@ -56,27 +56,108 @@ The response has the following JSON structure:
 
 ## Setup and Execution
 The current solution can be easily deployment and tested with a Uvicorn server running locally and a couple of API keys for remote features (including of course the model).
+NOTE: You can get different answer using different LLMs and even using the same one.
 
+Follow the steps in your Git Bash terminal to configure the virtual environment to run the server and try the PoC:
+- Navigate to the project path
+```
+cd /path/to/your/project/ecommerce-agentic-chatbot-rag
+```
 
+- Include these keys in your `.env` with the usual command so the virtual environment pull them with `load_dotenv()` when running `main.py`.
+```
+echo "API_KEY=your_secret_key_here" >> .env
+```
+The first key is Open AI API Key (it expires after this PoC is discussed and has limited funds so I have no problem to share it)
+```
+OPENAI_API_KEY="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"
+```
+The second key is Nomic API Key
+```
+NOMIC_API_KEY="nk-BiKfeOTbLxdppQVzOFphz4P1XzSwpJjbsoAfhTegu0g"
+```
+The last key is Tavily API Key (free)
+```
+TAVILY_API_KEY="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"
+```
+
+- Create the virtual environment (named 'venv')
+```
+python -m venv venv
+```
+
+- Activate it and run the server
+
+The following commands to activate the virtual environment and running the Uvicorn server:
+```
+cd Videos/ZooPlus/ecommerce-agentic-chatbot-rag/.venv/Script
+```
+
+```
+source activate
+```
+
+```
+python -m uvicorn react_agent.main:app --reload
+```
+
+You will see the loading and in your Git Bash terminal you will see the prints from the app showing what it happening in each step like this:
+
+![Getting Started](Capture_terminal.png)
+
+- Open up the URL provided and add the `/docs` after it to have the API details and easy way to test it 
+Copy the following test query and send it pressing *Execute*
+```
+{
+    "site_id": 1,
+    "query": "Do you have dry food for a puppy with a sensitive stomach in your store?"
+}
+```
+![Getting Started](Capture_browser.png)
 
 ## Decisions and Trade-offs
 Explain the key decisions you made in designing your agent and retrieval pipeline. What trade-offs did you consciously accept for the sake of this PoC, and what would you change or recommend for a production deployment?
 
-The first big decision was the selection of the React agent template from LangGraph GitHub repos to enable the main chatbot features. This decision marries the PoC to the structure that LangGraph proposes but also brings lots of off-the-shelf benefits, like the distribution of responsibilities in the different python scripts in the project, ease of connection to other features in and out of the project, a json configuration file "langgrash.json" that can later be adapted to use LangSmith Studio for better observability of the agents performance, and more.
+The first big decision was the selection of the **React agent template from LangGraph** GitHub repos to enable the main chatbot features. This decision marries the PoC to the structure that LangGraph proposes but also brings lots of off-the-shelf benefits, like the distribution of responsibilities in the different python scripts in the project, ease of connection to other features in and out of the project, a json configuration file "langgrash.json" that can later be adapted to use LangSmith Studio for better observability of the agents performance, and more.
 Also, a big pro in the list for LangGraph is the scalability of the current graph into more complex scenarios where the chatbot can produce sub-agents to complete other major procedure like doing a complete checkout for a user or just scaling the tools like a Agentic RAG instead of the current one.
 
-The second big decision was to split the dataset into site specific datasets to avoid mixing product from other sites in the conversation. This basically from the assumption that a user will be accessing a single site in this search for the desired product and taking that user to another site is not within the possibilities for this chatbot. If this changing to a multi-site chatbot that can cross-reference products between them, that may cost a larger refactor to the way this tool is implemented. So it was a bit of an effort when unplugging the LLM from the large number of details in the dataset (as described in the diagram above), to avoid mixing products from one site into the other in the varios checks and searches that happen in the process. The downside is how it becomes less flexible to change sites within the same conversation or allowing to recommend products of the same original dataset but different sites from the current one.
+The second big decision was to **split the dataset into site specific datasets** to avoid mixing product from other sites in the conversation. This basically from the assumption that a user will be accessing a single site in this search for the desired product and taking that user to another site is not within the possibilities for this chatbot. If this changing to a multi-site chatbot that can cross-reference products between them, that may cost a larger refactor to the way this tool is implemented. So it was a bit of an effort when unplugging the LLM from the large number of details in the dataset (as described in the diagram above), to avoid mixing products from one site into the other in the varios checks and searches that happen in the process. The downside is how it becomes less flexible to change sites within the same conversation or allowing to recommend products of the same original dataset but different sites from the current one.
 
-The third decision was to incorporate a conversation_id value generated by the application to enable a coherent conversation that can be decided as well by the Client side. The conversation thread can be kept consistent by the client repeating the id provided or providing another id provided before (even though that resets if the application resets because the conversation history is not saved externally yet). LangGraph provided options to enable memory between calls with "configurable threah Ids" that can keep track of the conversation (including tool calls) and that can be easily visible from LangSmith. I decided for a more straightforward solution that still kept the JSON structures proposed the in the assignment specs definition.
+The third decision was to **incorporate a conversation_id** value in the API request and responses generated by the application to enable a coherent conversation that can be decided as well by the Client side. The conversation thread can be kept consistent by the client repeating the id provided or providing another id provided before (even though that resets if the application resets because the conversation history is not saved externally yet). LangGraph provided options to enable memory between calls with "configurable threah Ids" that can keep track of the conversation (including tool calls) and that can be easily visible from LangSmith. I decided for a more straightforward solution that still kept the JSON structures proposed the in the assignment specs definition. Scalability and consistent state handling may have trouble with this, so it serves the purpose of PoC but not recommended for production.
 
 ## Future Roadmap
 If this PoC were approved, what would be the next 3-5 steps to move it towards production? (Think about testing, observability, evaluation, scalability, additional features, etc.)
 
-- Observability: as mentioned above this project is not hard to connect to LangSmith where a whole suit of observability and testing tools are available. 
+- **Observability:** as mentioned above this project is not hard to connect to LangSmith where a whole suit of observability and testing tools are available. 
 
-- Testing: the different steps (especially the ones dealing with datasets) should include testing in different levels to check that things are runnig as expected. Also, depending on which integrations are added to this PoC, the corresponding tests should be included. The "\health" route implemented in the API is part of the effort to be able to test along the way of implementation.
+- **Testing:** the different steps (especially the ones dealing with datasets) should include testing in different levels to check that things are runnig as expected. Also, depending on which integrations are added to this PoC, the corresponding tests should be included. The "\health" route implemented in the API is part of the effort to be able to test along the way of implementation.
 
-- Scalability:
+- **Scalability:** 
+There are **two big concerns** when it comes to scalability:
+- **State handling:** Too many state handling attibutions to the API will make it harder to scale up allowing for several tenants. Better to move conversation memory and retrieved ID history out of process memory into Redis or a database, so the API becomes horizontally scalable. 
+These are the parts that can be remove from process memory first:
+- conversation messages,
+- retrieved product IDs,
+- per-conversation site context,
+- response summaries,
+- optional user/session metadata.
+That way the HTTP worker itself “forgets” everything after responding, even though the system still supports multi-turn chats.
+- **Latency:**
+The LLM requests take some good time to be produced, especially when using the RAG pipeline retrieval so considering adding rate limiting, request tracing, and metrics on retrieval time, LLM time, and full-request latency, since scaling problems usually surface first as tail-latency issues rather than average latency issues.
+For your current architecture, we can prioritize:
+- Shorten the system prompt and tool instructions, because every request pays that token cost.
+- Limit retrieved context aggressively, for example smaller k, shorter chunks, or a hard token budget on inserted context.
+- Use a faster model for most requests and reserve a slower, stronger model only for difficult cases.
+- Cache repeated or semantically similar results, especially for common catalog questions.
 
-- Additional features:
+**Other concerns:**
+- **Startup and ingestion:** Ingestion runs at app startup so the API readiness becomes coupled to data preparation and embedding setup. That is manageable in development, but in production it hurts deploy speed, complicates autoscaling, and makes every new pod or worker repeat expensive initialization work. A big improvement we be keeping ingestion and vectorstore creation out of API startup, making them background jobs or deployment-time jobs.
+
+- **Additional features:** 
+Storage is one big aspect that needs preparation before taking this PoC to production. **Changing the local storage solutions** picked for this PoC and making the cloud storage will be natural step to take for deployment of this solution. Remote embeddings like the one used here is one good example for what is needed, but the vector database can be an external resource to used for the RAG in production as well as the access to the JSON files. So that storage components replacement would be the first concern for moving all to the deployable and scalable infrastructure.
+
+As mentioned above in the decisions, the **RAG pipeline can grow to become something more sophisticated.** A different datasets separation strategy can be implemented to include another global dataset that can be accessed as *site_0* or else. A different embedding can be chosen other than Nomic's. A different vector storage can be selected to change Chroma (I needed to update the library from LangGraph dealing with this type of database because of obsolete code). And the overall RAG pipeline architecture can evolve into something more dynamic: like Agentic RAG where the information retrieved is check by the same or other LLMs that can prepate the data before sending it back to the chatbot agent.
+
+The graph that already works for conversational flows with product catalog searches **can start incorporating more complex tools**. LangGraph architecture allows for changing all modular parts and growing the graph with extra nodes and extra agents if necessary. It is prepared for it so it shouldn't take a large effort to add one by one more features to it over time.
+
 

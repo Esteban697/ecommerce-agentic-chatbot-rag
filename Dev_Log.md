@@ -1,12 +1,12 @@
 
-## Dev Log:
+### Dev Log: [not updated]
 
 After reading the asignment I can split the focus in several aspects of this PoC:
 - The API Endpoint needs to meet all criterias and work with the current structure of the data handled in the chat
 - The RAG pipeline should make sense to operate accordingly
 - Chatbot may be mocked and later it can be scaled to a real AI agent and then it's topology should be scalable without big changes and risks to the above mentioned
 
-### RAG Pipeline
+#### RAG Pipeline
 
 and looking at the dataset provided I start with:
 
@@ -36,9 +36,3 @@ Use langchain_community.document_loaders to fetch JSON file and start using the 
 These chunks will be used for embedding with LangChain's NomicEmbeddings integration, needing a NOMIC_API_KEY.
 These embeddings will be indexed and store in a InMemoryVectorStore from langchain_core.vectorstores.
 The resulting vector DB can be used as part of the logic of a Tool Node in the Chatbot's graph.
-
-### 3) Chatbot
-
-API can provide a way to test the Chatbot implemented and exposed the data structures required.
-LangGraph based on ToolNode providing calls to RAG Pipeline and LangSmith providing observability.
-----------------------------------
