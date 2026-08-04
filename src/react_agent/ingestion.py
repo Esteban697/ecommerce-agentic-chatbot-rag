@@ -147,7 +147,7 @@ def embeddings_and_vectorstore(file_path: str | Path, site_id: int, max_chunk_si
 
 # Provide a way to retrieve the vector store for use in other parts of the application
 def get_vectorstore(site_id: int, chroma_base_dir: str | Path = "./chroma_db") -> Chroma:
-    embeddings = NomicEmbeddings(model=model_name, inference_mode="local")
+    embeddings = NomicEmbeddings(model=model_name, inference_mode="remote")
     persist_directory = Path(chroma_base_dir) / f"site_{site_id}"
 
     vectorstore = Chroma(
