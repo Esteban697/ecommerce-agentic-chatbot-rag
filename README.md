@@ -1,27 +1,18 @@
-## High-Level Design
+# E-Commerce Agentic Chatbot with RAG
 
-The following diagram shows both how the different components connect to each other (without going inside of the LangGraph based graph that builds the agent) and also shows the expected sequence of components that run when using the Uvicorn server to run the PoC:
+## Overview
 
-* First, the execution takes us to the data ingestion stage that takes the JSON file with the product catalog that the diagram represents as Dataset 0. This will be parsed and get rid of duplicated products (detected in our first analysis of the dataset). After algorithmic cleaning and following step will produce one new JSON file per each site_id provided inside Dataset 0. This allows for a cleaner data management without the concern of mixing products between sites. Next, each JSON file will be treated as the source for embeddings and vector database to produce. The OpenAI model produce the embeddings and these are passed on to Chroma to produce a dedicated vector database for that group of products of a specific site. This will be useful when retrieval occurs.
+This is an intelligent e-commerce chatbot designed specifically for pet product recommendations. Built as a proof-of-concept for real company, the chatbot helps customers find relevant pet products through natural language conversations. It combines the reasoning capabilities of large language models with retrieval-augmented generation (RAG) to provide accurate, grounded product recommendations based on an actual product catalog rather than relying on the model's general knowledge.
 
-* Second, when the data is locally saved and prepared for consumption, the user can start sending queries through the API implemented with FastAPI. The POST call needs to provide a JSON with query and site_id (and optional conversation_id normally from second message onwards). If you provide the conversation_id that comes in the first response of this API call, you can enjoy a conversation the chatbot will follow with semantic memory.
+The chatbot is built using LangGraph's ReAct (Reasoning and Action) agent pattern and exposes a FastAPI backend with RESTful endpoints. The system processes product catalog data by deduplicating entries, splitting products by site ID, creating semantic embeddings using OpenAI's text-embedding model, and storing them in site-specific ChromaDB vector databases. When a user asks a question, the agent uses semantic similarity search to retrieve the most relevant products from the vector store, then provides natural language recommendations grounded in the actual catalog data including product details, pricing, ratings, and stock availability.
 
-* Third, when the Chatbot agent receives queries, the LLM (in this case "openai/gpt-4.1") will decide when and which tool to call based on the system prompt that describes in detail what are the guardrails set for this chatbot to focus on product recommendation. The web_search tool based on Tavily is provided as a means to keep the chatbot situationally aware (even though a current_time value is passed to the system prompt) to avoid isolating it too much. Anyway, the core functionality here is the Tool Call search_catalog_local which uses the RAG to call for matches in the vector database for the specific site_id to provide around 3 product suggestions. Also, the suggested product names are pass along the graph to the main logic that runs the POST call to match these products in the original (site-specific) JSON file that can provide all the details back through the API response. This avoids passing lots of data back to the LLM where token usage can blow up.
-
-* Finally, the step 4 builds comprohensive answer combining:
-    * The LLM polite and thorough answer which product is mostly recommended and why.
-    * The data structures of the products retrieved. This carries a ton of value for any application consuming the API as the structured data can be the base for many recommendation features and following steps to acheive the purchase.
-
-![Getting Started](Diagram.png)
+Key features include site-scoped product search (ensuring users only see products from their specific shop), conversational memory that maintains context across multiple turns, multi-tool agent capabilities (with both web search via Tavily and local catalog search), and structured API responses that return both natural language answers and enriched product data for downstream applications. The architecture is designed to be scalable and extensible, with clear separation between data ingestion, embedding generation, vector storage, and the conversational agent layer.
 
 ### API Endpoint:
 
 AI-assisted coding was able to put together an initial template of what the FastAPI Post method could look like.
 Also, provided relevant code to de-duplicate the article-products in the dataset and a Mock to provide answers from that data when called.
 Nevertheless, I added to the current structure of the React Agent template from LangChain to connect it to a relevant component that can act as ChatBot.
-
-#### GET root (/):
-Just allows for a quick check when running the Uvicorn server locally, you can see the confirmation message in the browser when it loads the root.
 
 #### GET (/health)
 I useful call to check that API is running, that model is being able to respond to the calls, which site IDs
@@ -74,9 +65,9 @@ echo "API_KEY=your_secret_key_here" >> .env
 python -m venv venv
 ```
 
-- Activate it and run the server
+- Activate the virtual environment
 
-The following commands to activate the virtual environment and running the Uvicorn server:
+Navigate to the virtual environment scripts directory and activate it:
 ```
 cd Videos/ZooPlus/ecommerce-agentic-chatbot-rag/.venv/Script
 ```
@@ -85,6 +76,25 @@ cd Videos/ZooPlus/ecommerce-agentic-chatbot-rag/.venv/Script
 source activate
 ```
 
+- **Run the data ingestion script (Required before first use)**
+
+Before running the chatbot server for the first time, you must execute the data ingestion script. This prepares the product catalog data and creates the vector databases needed for the RAG feature:
+
+```
+python -m react_agent.ingest
+```
+
+This ingestion process will:
+  - Load the product catalog from `product_catalog_dataset.json`
+  - Deduplicate products and create separate JSON files for each `site_id`
+  - Generate semantic embeddings using OpenAI's `text-embedding-3-small` model
+  - Build and persist ChromaDB vector stores in `./chroma_db/` directory (one per site)
+
+You should see terminal output showing the deduplication progress, site IDs found, and vector store creation for each site. This step only needs to be run once initially, or whenever you update the product catalog dataset.
+
+- Start the chatbot server
+
+Once data ingestion is complete, start the Uvicorn server:
 ```
 python -m uvicorn react_agent.main:app --reload
 ```
