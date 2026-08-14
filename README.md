@@ -8,6 +8,12 @@ The chatbot is built using LangGraph's ReAct (Reasoning and Action) agent patter
 
 Key features include site-scoped product search (ensuring users only see products from their specific shop), conversational memory that maintains context across multiple turns, multi-tool agent capabilities (with both web search via Tavily and local catalog search), and structured API responses that return both natural language answers and enriched product data for downstream applications. The architecture is designed to be scalable and extensible, with clear separation between data ingestion, embedding generation, vector storage, and the conversational agent layer.
 
+## Architecture
+
+![E-commerce Agentic Chatbot Architecture](docs/architecture.png)
+
+(It may vary slightly as I am currently improving it...)
+
 ### API Endpoint:
 
 AI-assisted coding was able to put together an initial template of what the FastAPI Post method could look like.
