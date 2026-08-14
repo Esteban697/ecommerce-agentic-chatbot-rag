@@ -1,8 +1,0 @@
-curl -X 'POST' \
-  'http://127.0.0.1:8000/chat' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "site_id": 1,
-    "query": "Do you have dry food for a puppy with a sensitive stomach in your store?"
-}'
