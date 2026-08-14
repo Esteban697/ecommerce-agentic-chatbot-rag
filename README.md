@@ -90,7 +90,7 @@ python -m venv venv
 
 Navigate to the virtual environment scripts directory and activate it:
 ```
-cd Videos/ZooPlus/ecommerce-agentic-chatbot-rag/.venv/Script
+cd [LOCAL_PROJECT_PATH].venv/Scripts
 ```
 
 ```
@@ -122,7 +122,7 @@ python -m uvicorn react_agent.main:app --reload
 
 You will see the loading and in your Git Bash terminal you will see the prints from the app showing what it happening in each step like this:
 
-![Getting Started](Capture_terminal.png)
+![Getting Started](docs/uvicorn_running.png)
 
 - Test the API
 
