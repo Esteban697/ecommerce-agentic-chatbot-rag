@@ -13,12 +13,8 @@ import json
 from react_agent.context import Context
 from react_agent.graph import graph, check_model_active
 from react_agent.prompts import SYSTEM_PROMPT
-from react_agent.ingestion import (
-    embeddings_and_vectorstore,
-    deduplicate_products_in_separate_json,
-)
 
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+from langchain_core.messages import HumanMessage, BaseMessage
 
 
 """ API Endpoint definition with FastAPI
@@ -155,11 +151,10 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
 print("Starting FastAPI backend for E-Commerce Chatbot Service...")
 
-""" Data Ingestion 
-Description: The ingestion stage for the JSON dataset goes as follows:
-1. Deduplicate the products in the JSON dataset and save the unique products to a new JSON file.
-2. Create embeddings for the unique products using Nomic's embedding model using the new JSON file.
-3. Store the embeddings in a Chroma local vector store for efficient retrieval during product searches.
+""" Data Loading
+Description: Load pre-processed product data from deduplicated JSON files.
+If the deduplicated files don't exist, run the ingestion script first:
+    python -m react_agent.ingest
 """
 # Make sure to load environment variables from .env file
 load_dotenv()
@@ -167,30 +162,44 @@ load_dotenv()
 # Variables that can be inspected in the FastAPI /health endpoint
 SITE_IDS = []
 UNIQUE_PRODUCTS_COUNT = 0
+RAW_PRODUCTS = []
 
-# Now running the ingestion process
+# Load data from deduplicated files
 APP_DIR = Path(__file__).resolve().parent
-DATA_PATH = APP_DIR.parent / "react_agent" / "product_catalog_dataset.json"
+DATA_PATH = APP_DIR / "product_catalog_dataset.json"
 
+# Check if deduplicated files exist
+deduplicated_files = list(APP_DIR.glob("product_catalog_dataset_deduplicated_site_*.json"))
+
+if not deduplicated_files:
+    print("\n" + "="*60)
+    print("WARNING: No deduplicated data files found!")
+    print("="*60)
+    print("Please run the ingestion script first:")
+    print("  python -m react_agent.ingest")
+    print("="*60 + "\n")
+    raise FileNotFoundError(
+        "Deduplicated data files not found. Run 'python -m react_agent.ingest' first."
+    )
+
+# Load the original product catalog for the full dataset
 with open(DATA_PATH, "r", encoding="utf-8") as f:
     RAW_PRODUCTS = json.load(f)
 
-UNIQUE_PRODUCTS_COUNT, SITE_IDS = deduplicate_products_in_separate_json(DATA_PATH)
+# Extract site IDs from deduplicated filenames
+SITE_IDS = sorted([
+    int(f.stem.split("_site_")[-1])
+    for f in deduplicated_files
+])
 
-# Initialize one vector store per site-specific deduplicated JSON
-for site_id in SITE_IDS:
-    site_json_path = Path(DATA_PATH).with_name(
-        f"{Path(DATA_PATH).stem}_deduplicated_site_{site_id}.json"
-    )
-    print(f"Building vector store for site_id={site_id} from {site_json_path}")
-    embeddings_and_vectorstore(site_json_path, site_id=site_id, max_chunk_size=15000)
+# Count unique products from the original dataset
+seen_keys = set()
+for row in RAW_PRODUCTS:
+    key = json.dumps(row, sort_keys=True, ensure_ascii=False)
+    seen_keys.add(key)
+UNIQUE_PRODUCTS_COUNT = len(seen_keys)
 
-# MOCK--------------------------------------------------------------
-# with open(DATA_PATH, "r", encoding="utf-8") as f:
-#     RAW_PRODUCTS = json.load(f)
-
-# SITE_IDS = sorted({p["site_id"] for p in RAW_PRODUCTS})
-#-------------------------------------------------------------------
-
-print(f"Loaded {UNIQUE_PRODUCTS_COUNT} products from {DATA_PATH}.")
-print(f"Available site_ids: {SITE_IDS}.")
+print(f"Loaded {len(RAW_PRODUCTS)} products (including duplicates) from {DATA_PATH}.")
+print(f"Unique products: {UNIQUE_PRODUCTS_COUNT}")
+print(f"Available site_ids: {SITE_IDS}")
+print(f"Vector stores should be available in ./chroma_db/ for sites: {SITE_IDS}")
