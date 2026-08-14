@@ -154,6 +154,10 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Generated data files
+product_catalog_dataset_deduplicated_site_*.json
+*.bin
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

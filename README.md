@@ -14,18 +14,33 @@ Key features include site-scoped product search (ensuring users only see product
 
 (It may vary slightly as I am currently improving it...)
 
-### API Endpoint:
+### API Endpoints
+
+The API follows REST principles and uses versioned endpoints (v1) to ensure backward compatibility when breaking changes are introduced in future versions.
 
 AI-assisted coding was able to put together an initial template of what the FastAPI Post method could look like.
 Also, provided relevant code to de-duplicate the article-products in the dataset and a Mock to provide answers from that data when called.
 Nevertheless, I added to the current structure of the React Agent template from LangChain to connect it to a relevant component that can act as ChatBot.
 
-#### GET (/health)
-I useful call to check that API is running, that model is being able to respond to the calls, which site IDs
-can be used for the chatbot to have information about and that ingestion stagewas able to sort the products
+#### GET (/)
+Root endpoint that returns basic API information, version, and documentation link.
+
+#### GET (/v1/health)
+A useful call to check that the API is running, that the model is able to respond to calls, which site IDs
+can be used for the chatbot to have information about, and that the ingestion stage was able to sort the products
 in the dataset provided.
 
-#### POST (/chat)
+**Response:**
+```json
+{
+    "API_status": "Ok",
+    "model_active": true,
+    "sites_available": [1, 3, 15],
+    "unique_products": 1234
+}
+```
+
+#### POST (/v1/chat)
 The actual exposed method to use the chatbot from any compatible application. It expects a specific JSON:
 
 ```
@@ -109,8 +124,11 @@ You will see the loading and in your Git Bash terminal you will see the prints f
 
 ![Getting Started](Capture_terminal.png)
 
-- Open up the URL provided and add the `/docs` after it to have the API details and easy way to test it 
-Copy the following test query and send it pressing *Execute*
+- Test the API
+
+Open up the URL provided (typically `http://127.0.0.1:8000`) and add `/docs` to access the interactive API documentation (Swagger UI).
+
+Navigate to the **POST /v1/chat** endpoint and click "Try it out". Copy the following test query and send it by pressing *Execute*
 ```
 {
     "site_id": 1,

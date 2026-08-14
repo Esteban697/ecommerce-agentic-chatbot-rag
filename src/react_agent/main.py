@@ -2,7 +2,7 @@
 Defines the API endpoints and the data ingestion logic."""
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Any
@@ -26,6 +26,9 @@ app = FastAPI(
     version="1.0.0",
     description="Async FastAPI backend that answers catalog questions using site-scoped product retrieval."
 )
+
+# API v1 Router for versioned endpoints
+v1_router = APIRouter(prefix="/v1", tags=["v1"])
 
 class ChatRequest(BaseModel):
     site_id: int = Field(..., description="Shop context identifier")
@@ -76,10 +79,15 @@ ID_HISTORY: list[int]
 
 @app.get('/')
 async def root():
-    return { 'message': 'API is running...'}
+    return {
+        'message': 'E-Commerce Chatbot API is running',
+        'version': '1.0.0',
+        'docs': '/docs'
+    }
 
-@app.get('/health')
+@v1_router.get('/health')
 async def health() -> dict[str, Any]:
+    """Health check endpoint for API and model status."""
     is_model_active = await check_model_active(model_name)
     return {
         "API_status": "Ok",
@@ -89,8 +97,9 @@ async def health() -> dict[str, Any]:
         }
 
 
-@app.post("/chat", response_model=ChatResponse)
+@v1_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
+    """Main chat endpoint for conversational product recommendations."""
     if payload.site_id not in SITE_IDS:
         raise HTTPException(
             status_code=400,
@@ -148,6 +157,9 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         conversation_id=conversation_id,
         retrieved_products=retrieved_products
     )
+
+# Include the v1 router in the main app
+app.include_router(v1_router)
 
 print("Starting FastAPI backend for E-Commerce Chatbot Service...")
 
