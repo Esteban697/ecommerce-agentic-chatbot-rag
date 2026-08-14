@@ -3,12 +3,15 @@
 
 This script handles the complete data ingestion process:
 1. Deduplicates products from the JSON dataset
-2. Creates embeddings using Nomic's embedding model
+2. Creates embeddings using OpenAI's embedding model (text-embedding-3-small)
 3. Stores embeddings in a Chroma vector store for efficient retrieval
 
 Usage:
     python -m react_agent.ingest
     python -m react_agent.ingest --data-path path/to/data.json
+
+Requirements:
+    - OPENAI_API_KEY environment variable must be set in .env file
 """
 
 import argparse

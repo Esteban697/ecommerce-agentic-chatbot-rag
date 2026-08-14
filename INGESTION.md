@@ -12,7 +12,7 @@ The data ingestion process has been separated into a standalone script that you 
 
 1. Make sure you have your `.env` file configured with the required API keys:
    ```bash
-   NOMIC_API_KEY=your_nomic_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 2. Run the ingestion script:
@@ -23,7 +23,7 @@ The data ingestion process has been separated into a standalone script that you 
 This will:
 - Deduplicate products from `product_catalog_dataset.json`
 - Create site-specific JSON files (e.g., `product_catalog_dataset_deduplicated_site_1.json`)
-- Generate embeddings using Nomic's embedding model
+- Generate embeddings using OpenAI's `text-embedding-3-small` model
 - Store embeddings in `./chroma_db/` directory for each site
 
 ### Custom Data Path
@@ -77,9 +77,9 @@ Simply run the ingestion script as shown above.
 
 ### Missing Environment Variables
 
-If you get an error about missing `NOMIC_API_KEY`:
+If you get an error about missing `OPENAI_API_KEY`:
 1. Create a `.env` file in the root directory
-2. Add your Nomic API key: `NOMIC_API_KEY=your_key_here`
+2. Add your OpenAI API key: `OPENAI_API_KEY=your_key_here`
 3. Run the ingestion script again
 
 ## File Structure

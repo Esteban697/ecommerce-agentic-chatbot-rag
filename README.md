@@ -2,7 +2,7 @@
 
 The following diagram shows both how the different components connect to each other (without going inside of the LangGraph based graph that builds the agent) and also shows the expected sequence of components that run when using the Uvicorn server to run the PoC:
 
-* First, the execution takes us to the data ingestion stage that takes the JSON file with the product catalog that the diagram represents as Dataset 0. This will be parsed and get rid of duplicated products (detected in our first analysis of the dataset). After algorithmic cleaning and following step will produce one new JSON file per each site_id provided inside Dataset 0. This allows for a cleaner data management without the concern of mixing products between sites. Next, each JSON file will be treated as the source for embeddings and vector database to produce. The Nomic model persforms a remote inference to produce the embeddings and these are passed on to Chroma to produce a dedicated vector database for that group of products of a specific site. This will be useful when retrieval occurs.
+* First, the execution takes us to the data ingestion stage that takes the JSON file with the product catalog that the diagram represents as Dataset 0. This will be parsed and get rid of duplicated products (detected in our first analysis of the dataset). After algorithmic cleaning and following step will produce one new JSON file per each site_id provided inside Dataset 0. This allows for a cleaner data management without the concern of mixing products between sites. Next, each JSON file will be treated as the source for embeddings and vector database to produce. The OpenAI model produce the embeddings and these are passed on to Chroma to produce a dedicated vector database for that group of products of a specific site. This will be useful when retrieval occurs.
 
 * Second, when the data is locally saved and prepared for consumption, the user can start sending queries through the API implemented with FastAPI. The POST call needs to provide a JSON with query and site_id (and optional conversation_id normally from second message onwards). If you provide the conversation_id that comes in the first response of this API call, you can enjoy a conversation the chatbot will follow with semantic memory.
 
@@ -71,10 +71,6 @@ echo "API_KEY=your_secret_key_here" >> .env
 The first key is Open AI API Key (it expires after this PoC is discussed and has limited funds so I have no problem to share it)
 ```
 OPENAI_API_KEY="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"
-```
-The second key is Nomic API Key
-```
-NOMIC_API_KEY="nk-BiKfeOTbLxdppQVzOFphz4P1XzSwpJjbsoAfhTegu0g"
 ```
 The last key is Tavily API Key (free)
 ```
@@ -155,7 +151,7 @@ For your current architecture, we can prioritize:
 **Additional features:** 
 Storage is one big aspect that needs preparation before taking this PoC to production. **Changing the local storage solutions** picked for this PoC and making the cloud storage will be natural step to take for deployment of this solution. Remote embeddings like the one used here is one good example for what is needed, but the vector database can be an external resource to used for the RAG in production as well as the access to the JSON files. So that storage components replacement would be the first concern for moving all to the deployable and scalable infrastructure.
 
-As mentioned above in the decisions, the **RAG pipeline can grow to become something more sophisticated.** A different datasets separation strategy can be implemented to include another global dataset that can be accessed as *site_0* or else. A different embedding can be chosen other than Nomic's. A different vector storage can be selected to change Chroma (I needed to update the library from LangGraph dealing with this type of database because of obsolete code). And the overall RAG pipeline architecture can evolve into something more dynamic: like Agentic RAG where the information retrieved is check by the same or other LLMs that can prepate the data before sending it back to the chatbot agent.
+As mentioned above in the decisions, the **RAG pipeline can grow to become something more sophisticated.** A different datasets separation strategy can be implemented to include another global dataset that can be accessed as *site_0* or else. A different embedding can be chosen other than OpenAI's. A different vector storage can be selected to change Chroma (I needed to update the library from LangGraph dealing with this type of database because of obsolete code). And the overall RAG pipeline architecture can evolve into something more dynamic: like Agentic RAG where the information retrieved is check by the same or other LLMs that can prepate the data before sending it back to the chatbot agent.
 
 The graph that already works for conversational flows with product catalog searches **can start incorporating more complex tools**. LangGraph architecture allows for changing all modular parts and growing the graph with extra nodes and extra agents if necessary. It is prepared for it so it shouldn't take a large effort to add one by one more features to it over time.
 
