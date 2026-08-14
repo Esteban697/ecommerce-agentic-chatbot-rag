@@ -91,8 +91,10 @@ def search_catalog_local(query: str, runtime: ToolRuntime[Context]) -> dict[str,
     specific_site_products = [p for p in runtime.context.products if p.get("site_id") == site_id]
     print(f"Amount of products in the catalog for site_id {site_id}: {len(specific_site_products)}. To search for product names: {product_names}")
 
-    for prod in specific_site_products:
+    for prod in specific_site_products[:6]:
         print(f"(ofType:{type(prod.get("product_name"))}). Name in list{prod.get("product_name")}")
+    if len(specific_site_products) > 6:
+        print(f"... and {len(specific_site_products) - 6} more products")
 
     retrieved_products = [
         p for p in specific_site_products
