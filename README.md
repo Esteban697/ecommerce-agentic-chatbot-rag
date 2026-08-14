@@ -135,7 +135,7 @@ Navigate to the **POST /v1/chat** endpoint and click "Try it out". Copy the foll
     "query": "Do you have dry food for a puppy with a sensitive stomach in your store?"
 }
 ```
-![Getting Started](Capture_browser.png)
+![Getting Started](docs/Capture_browser.png)
 
 
 ## Decisions and Trade-offs
