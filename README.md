@@ -68,14 +68,6 @@ cd /path/to/your/project/ecommerce-agentic-chatbot-rag
 ```
 echo "API_KEY=your_secret_key_here" >> .env
 ```
-The first key is Open AI API Key (it expires after this PoC is discussed and has limited funds so I have no problem to share it)
-```
-OPENAI_API_KEY="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"
-```
-The last key is Tavily API Key (free)
-```
-TAVILY_API_KEY="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"
-```
 
 - Create the virtual environment (named 'venv')
 ```
