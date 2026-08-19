@@ -6,13 +6,27 @@ This is an intelligent e-commerce chatbot designed specifically for pet product 
 
 The chatbot is built using LangGraph's ReAct (Reasoning and Action) agent pattern and exposes a FastAPI backend with RESTful endpoints. The system processes product catalog data by deduplicating entries, splitting products by site ID, creating semantic embeddings using OpenAI's text-embedding model, and storing them in site-specific ChromaDB vector databases. When a user asks a question, the agent uses semantic similarity search to retrieve the most relevant products from the vector store, then provides natural language recommendations grounded in the actual catalog data including product details, pricing, ratings, and stock availability.
 
-Key features include site-scoped product search (ensuring users only see products from their specific shop), conversational memory that maintains context across multiple turns, multi-tool agent capabilities (with both web search via Tavily and local catalog search), and structured API responses that return both natural language answers and enriched product data for downstream applications. The architecture is designed to be scalable and extensible, with clear separation between data ingestion, embedding generation, vector storage, and the conversational agent layer.
+Key features include site-scoped product search (ensuring users only see products from their specific shop), conversational memory that maintains context across multiple turns, multi-tool agent capabilities (with both web search via Tavily and local catalog search), and structured API responses that return both natural language answers and enriched product data for downstream applications. 
+
+The project also includes a modern, responsive frontend that provides a seamless chat experience, featuring:
+- **Real-time Product Rendering**: Retrieved products are displayed as interactive cards directly within the chat flow.
+- **Thinking State**: A dynamic "thinking" animation (animated dots) to inform the user when the agent is processing a request.
+- **Suggested Products Tracker**: A persistent dropdown menu that keeps track of all products recommended during the conversation.
+- **Responsive Design**: A clean, mobile-friendly interface built with Tailwind CSS.
+
+The architecture is designed to be scalable and extensible, with clear separation between data ingestion, embedding generation, vector storage, and the conversational agent layer.
 
 ## Architecture
 
 ![E-commerce Agentic Chatbot Architecture](docs/architecture.png)
 
 (It may vary slightly as I am currently improving it...)
+
+## Front End
+
+The project features a modern, responsive web interface built with HTML, Tailwind CSS, and vanilla JavaScript. The UI is designed to provide a seamless, "app-like" experience for users interacting with the chatbot, moving beyond a simple text-based interface to a rich, interactive display.
+
+Key UI components include a real-time product gallery that renders recommended items as a horizontally scrollable list of cards, ensuring that product details like pricing and names are immediately visible without cluttering the conversation. To enhance the user experience, the interface incorporates a dynamic "thinking" state—an animated three-dot bubble—that provides instant visual feedback while the agent is processing a request. Additionally, a "Suggested Products" tracker is integrated into the header, maintaining a persistent list of all recommended products throughout the session for easy reference.
 
 ### API Endpoints
 
@@ -120,7 +134,9 @@ Once data ingestion is complete, start the Uvicorn server:
 python -m uvicorn react_agent.main:app --reload
 ```
 
-You will see the loading and in your Git Bash terminal you will see the prints from the app showing what it happening in each step like this:
+The server will be available at `http://127.0.0.1:8000`. You can interact with the chatbot directly through the web interface in your browser.
+
+You will see the loading and in your Git Bash terminal you will see the prints from the app showing what is happening in each step like this:
 
 ![Getting Started](docs/uvicorn_running.png)
 
