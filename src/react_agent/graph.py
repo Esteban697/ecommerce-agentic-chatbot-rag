@@ -54,6 +54,15 @@ async def call_model(
         system_time=datetime.now(tz=UTC).isoformat()
     )
 
+    # Tool-First Guardrail: Force tool use for product queries on first turn
+    last_human_message = state["messages"][-1] if state["messages"] else None
+    if isinstance(last_human_message, HumanMessage):
+        query_text = last_human_message.content.lower()
+        product_keywords = ["product", "recommend", "search", "available", "do you have", "catalog", "price", "brand", "compare", "food", "toy", "litter", "grooming"]
+        if any(kw in query_text for kw in product_keywords) and len(state["messages"]) <= 1:
+            print("\n[Guardrail] Product query detected on first turn. Forcing search_catalog_local tool use.")
+            system_message += "\n\n*** MANDATORY ACTION ***\nThis is a product-related query. You MUST call the 'search_catalog_local' tool NOW to verify the catalog before providing any answer. Do not answer from memory or claim nothing was found without calling this tool first."
+
     # Print the first 500 characters of the system message for debugging
     print(f"====== SYSTEM MESSAGE ======\n\n System message (first 500 chars): {system_message[:500]}...... \n\n")
     # Print the first 200 characters of the last human message for debugging

@@ -11,6 +11,73 @@ from typing import Any
 from uuid import uuid4
 
 import json
+from pathlib import Path
+from typing import Any
+
+def clean_llm_answer(text: str) -> str:
+    """
+    Aggressively cleans the LLM response to ensure it's a plain string.
+    """
+    if not text:
+        return ""
+
+    current_text = text.strip()
+
+    # Strip markdown code blocks
+    if current_text.startswith("```"):
+        import re
+        current_text = re.sub(r"^```[a-zA-Z]*\n?", "", current_text)
+        current_text = re.sub(r"\n?```$", "", current_text)
+        current_text = current_text.strip()
+
+    # We loop to handle multiple layers of wrapping
+    for _ in range(5):
+        # 1. Try JSON parsing
+        try:
+            data = json.loads(current_text)
+            if isinstance(data, dict):
+                if "answer" in data:
+                    current_text = str(data["answer"]).strip()
+                    continue
+                if len(data) == 1:
+                    current_text = str(list(data.values())[0]).strip()
+                    continue
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # 2. Regex fallback: find the value of the 'answer' key
+        import re
+        # This regex looks for "answer": "..." and captures the content
+        match = re.search(r'"answer":\s*"(.*?)"\s*\}?$', current_text, re.DOTALL | re.IGNORECASE)
+        if match:
+            current_text = match.group(1).strip()
+            continue
+
+        # 3. Another regex fallback for cases where it's just { "answer": "..." }
+        match = re.search(r'\{\s*"answer":\s*"(.*?)"\s*\}', current_text, re.DOTALL | re.IGNORECASE)
+        if match:
+            current_text = match.group(1).strip()
+            continue
+
+        break
+
+    # Final pass: if it still looks like a JSON object with an 'answer' key,
+    # but regex/json failed, try a very simple split.
+    if current_text.startswith('{') and '"answer":' in current_text:
+        try:
+            # Very crude extraction
+            parts = current_text.split('"answer":')
+            if len(parts) > 1:
+                val = parts[1].strip()
+                if val.startswith('"'):
+                    val = val[1:]
+                if val.endswith('"') or val.endswith('"}'):
+                    val = val.rstrip('"}')
+                return val.strip()
+        except Exception:
+            pass
+
+    return current_text
 
 from react_agent.context import Context
 from react_agent.graph import graph, check_model_active
@@ -84,7 +151,7 @@ CONVERSATIONS: dict[str, list[BaseMessage]] = {}
 # Longer conversations should be saved externally and reloaded as needed.
 MAX_MESSAGES = 30
 # Simple in-memory ids store
-ID_HISTORY: list[int]
+# ID_HISTORY is no longer used globally to ensure thread-safety and session isolation.
 
 @v1_router.get('/health')
 async def health() -> dict[str, Any]:
@@ -109,7 +176,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
     conversation_id = payload.conversation_id or str(uuid4())
     history = CONVERSATIONS.get(conversation_id, [])[-MAX_MESSAGES:]
-    ID_HISTORY = []
+    # ID_HISTORY removed to prevent shadowing and ensure session isolation.
 
     # Update the context with the current site_id and products for this conversation
     current_user_message = HumanMessage(content=payload.query)
@@ -121,7 +188,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         {
             "messages": input_messages,
             "retrieved_products": previous_products,
-            "retrieved_products_ids": ID_HISTORY
+            "retrieved_products_ids": [],
         },
         context=Context(
             model=model_name,
@@ -134,13 +201,16 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     final_message = result["messages"][-1]
     answer = final_message.content if hasattr(final_message, "content") else str(final_message)
 
+    # Clean the answer to remove potential double-encoded JSON
+    answer = clean_llm_answer(answer)
+
     updated_messages = result["messages"]
     CONVERSATIONS[conversation_id] = updated_messages
 
     # Get the list of IDs from graph State, originally from tool call
     retrieved_products_ids = result.get("retrieved_products_ids", [])
     print(f"retrieved_products_ids from graph result: {retrieved_products_ids}")
-    ID_HISTORY.append(retrieved_products_ids)
+    # ID_HISTORY append removed for session isolation.
 
     site_products = [
         p for p in RAW_PRODUCTS

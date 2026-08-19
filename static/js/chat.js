@@ -1,3 +1,5 @@
+const suggestedProducts = new Set();
+
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const query = input.value.trim();
@@ -8,6 +10,9 @@ async function sendMessage() {
     // 1. Append User Message
     appendMessage('user', query);
     input.value = '';
+
+    // Show thinking state
+    const thinkingId = showThinkingState();
 
     try {
         const response = await fetch('/v1/chat', {
@@ -46,7 +51,41 @@ async function sendMessage() {
     } catch (error) {
         console.error('Error sending message:', error);
         appendMessage('bot', 'Sorry, something went wrong. Please try again later.', []);
+    } finally {
+        removeThinkingState(thinkingId);
     }
+}
+
+function showThinkingState() {
+    const chatWindow = document.getElementById('chat-window');
+    const id = 'thinking-' + Date.now();
+
+    const messageDiv = document.createElement('div');
+    messageDiv.id = id;
+    messageDiv.className = 'flex justify-start items-end space-x-2';
+
+    messageDiv.innerHTML = `
+        <img src="https://ui-avatars.com/api/?name=E-bot&background=2563eb&color=fff"
+             class="w-8 h-8 rounded-full shrink-0 mb-1" alt="Bot Avatar">
+        <div class="flex flex-col items-start w-full">
+            <div class="message-bubble p-3 rounded-2xl shadow-sm bg-gray-200 text-gray-800 rounded-bl-none">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    chatWindow.appendChild(messageDiv);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    return id;
+}
+
+function removeThinkingState(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
 }
 
 function appendMessage(role, text, products = []) {
@@ -83,14 +122,12 @@ function appendMessage(role, text, products = []) {
     bubbleContainer.appendChild(time);
 
     if (role === 'bot') {
-        messageDiv.appendChild(bubbleContainer);
-
         // Render Products
         if (products && products.length > 0) {
             updateSuggestedProducts(products);
 
             const productList = document.createElement('div');
-            productList.className = 'flex overflow-x-auto space-x-3 py-2 w-full max-w-xs';
+            productList.className = 'flex overflow-x-auto space-x-3 py-2 w-full';
             productList.style.scrollbarWidth = 'none';
 
             products.forEach(p => {
@@ -103,16 +140,14 @@ function appendMessage(role, text, products = []) {
                 productList.appendChild(card);
             });
 
-            // We need to wrap the bot's layout to allow products to be beneath the bubble
-            // Let's restructure slightly for a better flow
             const botWrapper = document.createElement('div');
             botWrapper.className = 'flex flex-col items-start max-w-full';
             botWrapper.appendChild(bubbleContainer);
             botWrapper.appendChild(productList);
 
-            // Remove the direct child and replace with wrapper
-            messageDiv.removeChild(bubbleContainer);
             messageDiv.appendChild(botWrapper);
+        } else {
+            messageDiv.appendChild(bubbleContainer);
         }
     } else {
         messageDiv.appendChild(bubbleContainer);
@@ -180,4 +215,3 @@ window.addEventListener('click', (e) => {
         dropdown.classList.add('hidden');
     }
 });
-

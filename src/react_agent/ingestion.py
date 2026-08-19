@@ -5,7 +5,6 @@ retrieval during product searches. RAG (Retrieval-Augmented Generation) is used 
 accurate and relevant product information based on user queries.
 """
 
-from langchain_text_splitters import RecursiveJsonSplitter
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
@@ -104,13 +103,17 @@ def load_json_data(file_path: str) -> list[dict[str, Any]]:
 def embeddings_and_vectorstore(file_path: str | Path, site_id: int, max_chunk_size: int = 300) -> Chroma:
     """Load JSON data, split it into chunks, create embeddings, and store them in a vector store."""
 
-    # The data set will be split into JSON chunks of this size (in characters) before creating embeddings
-    splitter = RecursiveJsonSplitter(max_chunk_size)
     # Load the JSON data from the specified file path
-    documents = load_json_data(str(file_path))
-    # Split the documents into smaller chunks for embedding
-    documents_split = splitter.create_documents(documents, convert_lists=True)
+    documents_data = load_json_data(str(file_path))
+
+    # Directly convert dictionaries to Document objects to avoid RecursiveJsonSplitter
+    # wrapping the page_content in JSON strings, which breaks extraction regex.
+    documents_split = [
+        Document(page_content=d["page_content"], metadata=d["metadata"])
+        for d in documents_data
+    ]
     # Create embeddings using OpenAI's embedding model
+
     # Note: Requires OPENAI_API_KEY environment variable to be set
     embeddings = OpenAIEmbeddings(
         model=model_name,  # OpenAI's text-embedding-3-small model (1536 dimensions)

@@ -29,14 +29,17 @@ async def search_web(query: str, runtime: ToolRuntime[Context]) -> dict[str, Any
     print(f"Web search results: {result}")
     return dict(result)
 
-PRODUCT_NAME_RE = re.compile(r"(?im)^\s*Product\s*name\s*:\s*(.+?)\s*$")
+PRODUCT_NAME_RE = re.compile(r"(?im)^\s*Product\s*name\s*:\s*(.+?)\s*$", re.MULTILINE)
 
 def extract_product_name(raw: str) -> str | None:
-    # If raw is JSON, extract the inner page_content
+    # If raw is JSON, attempt to extract the inner page_content
     try:
         obj = json.loads(raw)
-        text = obj.get("page_content", "") or ""
-    except json.JSONDecodeError:
+        if isinstance(obj, dict):
+            text = obj.get("page_content", "") or ""
+        else:
+            text = str(obj)
+    except (json.JSONDecodeError, TypeError):
         # Fallback: treat raw as plain text
         text = raw or ""
 
@@ -98,7 +101,7 @@ def search_catalog_local(query: str, runtime: ToolRuntime[Context]) -> dict[str,
 
     retrieved_products = [
         p for p in specific_site_products
-        if p.get("product_name") in product_names
+        if p.get("product_name", "").strip().lower() in [name.strip().lower() for name in product_names if name]
     ]
 
     
