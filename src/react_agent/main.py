@@ -3,6 +3,8 @@ Defines the API endpoints and the data ingestion logic."""
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, APIRouter
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,13 @@ app = FastAPI(
     version="1.0.0",
     description="Async FastAPI backend that answers catalog questions using site-scoped product retrieval."
 )
+
+# Serve static files for the frontend
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get('/')
+async def root():
+    return FileResponse("static/index.html")
 
 # API v1 Router for versioned endpoints
 v1_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -76,14 +85,6 @@ CONVERSATIONS: dict[str, list[BaseMessage]] = {}
 MAX_MESSAGES = 30
 # Simple in-memory ids store
 ID_HISTORY: list[int]
-
-@app.get('/')
-async def root():
-    return {
-        'message': 'E-Commerce Chatbot API is running',
-        'version': '1.0.0',
-        'docs': '/docs'
-    }
 
 @v1_router.get('/health')
 async def health() -> dict[str, Any]:

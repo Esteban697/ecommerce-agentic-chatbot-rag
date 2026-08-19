@@ -1,0 +1,28 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+#chat-window::-webkit-scrollbar {
+    width: 6px;
+}
+
+#chat-window::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chat-window::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+#chat-window::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.message-bubble {
+    width: fit-content;
+    max-width: 80%;
+    word-wrap: break-word;
+    white-space: normal;
+    display: block;
+}
