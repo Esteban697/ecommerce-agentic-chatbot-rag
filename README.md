@@ -139,23 +139,6 @@ python -m uvicorn react_agent.main:app --reload
 
 The server will be available at `http://127.0.0.1:8000`. You can interact with the chatbot directly through the web interface in your browser.
 
-You will see the loading and in your Git Bash terminal you will see the prints from the app showing what is happening in each step like this:
-
-![Getting Started](docs/uvicorn_running.png)
-
-- Test the API
-
-Open up the URL provided (typically `http://127.0.0.1:8000`) and add `/docs` to access the interactive API documentation (Swagger UI).
-
-Navigate to the **POST /v1/chat** endpoint and click "Try it out". Copy the following test query and send it by pressing *Execute*
-```
-{
-    "site_id": 1,
-    "query": "Do you have dry food for a puppy with a sensitive stomach in your store?"
-}
-```
-![Getting Started](docs/Capture_browser.png)
-
 
 ## Decisions and Trade-offs
 Explain the key decisions you made in designing your agent and retrieval pipeline. What trade-offs did you consciously accept for the sake of this PoC, and what would you change or recommend for a production deployment?
