@@ -28,6 +28,9 @@ The project features a modern, responsive web interface built with HTML, Tailwin
 
 Key UI components include a real-time product gallery that renders recommended items as a horizontally scrollable list of cards, ensuring that product details like pricing and names are immediately visible without cluttering the conversation. To enhance the user experience, the interface incorporates a dynamic "thinking" state—an animated three-dot bubble—that provides instant visual feedback while the agent is processing a request. Additionally, a "Suggested Products" tracker is integrated into the header, maintaining a persistent list of all recommended products throughout the session for easy reference.
 
+![Frontend Chatbot Interface](docs/E_bot_animated.webp)
+
+
 ### API Endpoints
 
 The API follows REST principles and uses versioned endpoints (v1) to ensure backward compatibility when breaking changes are introduced in future versions.
