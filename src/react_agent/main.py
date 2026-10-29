@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -108,7 +109,7 @@ v1_router = APIRouter(prefix="/v1", tags=["v1"])
 
 class ChatRequest(BaseModel):
     site_id: int = Field(..., description="Shop context identifier")
-    query: str = Field(..., min_length=1, description="Customer natural language question")
+    query: str = Field(..., min_length=1, max_length=2000, description="Customer natural language question")
     conversation_id: str | None = Field(
         default=None,
         description="Conversation identifier. Reuse it across turns to preserve memory."
@@ -133,10 +134,8 @@ class Product(BaseModel):
     discount_label: str | None = None
     rating_average: float | None = None
     rating_count: int | None = None
-    stock_units: int | None = None
-    margin_pct: float | None = None
-    monthly_sales_units: int | None = None
-    revenue_last_30d: float | None = None
+    # Internal commercial metrics (stock_units, margin_pct, monthly_sales_units,
+    # revenue_last_30d) are deliberately NOT part of the public response model.
 
 class ChatResponse(BaseModel):
     answer: str
@@ -145,18 +144,38 @@ class ChatResponse(BaseModel):
 
 model_name = "openai/gpt-4.1"
 
+# `/health` used to invoke the model on every request, so a loop against it
+# burned provider quota. Cache the probe for a short window instead.
+_HEALTH_TTL_SECONDS = 300
+_health_checked_at: float | None = None
+_health_is_active: bool = False
+
+
+async def cached_model_active(model: str) -> bool:
+    """Return the cached model-health result, refreshing at most every TTL."""
+    global _health_checked_at, _health_is_active
+    now = time.monotonic()
+    if _health_checked_at is not None and now - _health_checked_at < _HEALTH_TTL_SECONDS:
+        return _health_is_active
+    _health_is_active = await check_model_active(model)
+    _health_checked_at = now
+    return _health_is_active
+
 # Simple in-memory conversation store
 CONVERSATIONS: dict[str, list[BaseMessage]] = {}
-# Maximum number of messages to keep in memory for a conversation. 
+# Maximum number of messages to keep in memory for a conversation.
 # Longer conversations should be saved externally and reloaded as needed.
 MAX_MESSAGES = 30
+# Cap on concurrently retained conversations. Dicts preserve insertion order,
+# so the first key is the oldest and is evicted first.
+MAX_CONVERSATIONS = 1000
 # Simple in-memory ids store
 # ID_HISTORY is no longer used globally to ensure thread-safety and session isolation.
 
 @v1_router.get('/health')
 async def health() -> dict[str, Any]:
     """Health check endpoint for API and model status."""
-    is_model_active = await check_model_active(model_name)
+    is_model_active = await cached_model_active(model_name)
     return {
         "API_status": "Ok",
         "model_active": is_model_active,
@@ -205,6 +224,9 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     answer = clean_llm_answer(answer)
 
     updated_messages = result["messages"]
+    if conversation_id not in CONVERSATIONS and len(CONVERSATIONS) >= MAX_CONVERSATIONS:
+        # Evict the oldest conversation; this store is process-local and bounded.
+        CONVERSATIONS.pop(next(iter(CONVERSATIONS)), None)
     CONVERSATIONS[conversation_id] = updated_messages
 
     # Get the list of IDs from graph State, originally from tool call

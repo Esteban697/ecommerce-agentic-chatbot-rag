@@ -2,7 +2,6 @@
   "$schema": "https://langgra.ph/schema.json",
   "dependencies": ["."],
   "graphs": {
-    "agent": "C:/Users/esteb/Videos/ZooPlus/ecommerce-agentic-chatbot-rag/src/react_agent/graph.py:graph"
-  },
-  "env": ".env"
+    "agent": "./src/react_agent/graph.py:graph"
+  }
 }
