@@ -133,10 +133,15 @@ function appendMessage(role, text, products = []) {
             products.forEach(p => {
                 const card = document.createElement('div');
                 card.className = 'bg-white border rounded-lg p-2 shadow-sm shrink-0 w-32 text-xs';
-                card.innerHTML = `
-                    <div class="font-bold truncate">${p.product_name || 'Unknown Product'}</div>
-                    <div class="text-blue-600 font-semibold">${p.price || 'N/A'} ${p.currency || ''}</div>
-                `;
+                // Built with textContent: product fields come from the catalog
+                // and must never be parsed as HTML.
+                const name = document.createElement('div');
+                name.className = 'font-bold truncate';
+                name.textContent = p.product_name || 'Unknown Product';
+                const price = document.createElement('div');
+                price.className = 'text-blue-600 font-semibold';
+                price.textContent = `${p.price || 'N/A'} ${p.currency || ''}`.trim();
+                card.append(name, price);
                 productList.appendChild(card);
             });
 
